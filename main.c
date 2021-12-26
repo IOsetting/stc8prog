@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "stc8prog.h"
+#include "stc8db.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,9 +72,12 @@ int main(int argc, char *const argv[])
     unsigned int speed = DEFAULTS_SPEED;
     char *file = NULL;
     char *port = DEFAULTS_PORT;
-    int optidx, ret;
+    int optidx, ret, hex_size;
     char arg;
-    uint8_t *buff = (uint8_t [255]){};
+    const stc_model_t *stc_model;
+    const stc_protocol_t *stc_protocol;
+    uint8_t *recv = (uint8_t [255]){};
+    uint16_t chip_code;
 
     /** No buffer, disable buffering on stdout  */
     setbuf(stdout, NULL);
@@ -108,11 +112,22 @@ int main(int argc, char *const argv[])
     if (flags & FLAG_DEBUG)
         set_debug(true);
 
+    if (file) {
+        printf("Loading hex file: ");
+        if ((hex_size = load_hex_file(file)) < 0)
+        {
+            printf("Failed to load hex file\n");
+            exit(1);
+        }
+    }
+
+    printf("Opening port %s: ", port);
     if ((ret = termios_open(port)))
     {
-        printf("** Failed to open port %s\n", port);
+        printf("\e[31mcan not open port\e[0m\n");
         exit(1);
     }
+    printf("\e[32mdone\e[0m\n");
 
     if ((ret = termios_setup(MINBAUD, 8, 1, 'E')))
     {
@@ -120,28 +135,55 @@ int main(int argc, char *const argv[])
         exit(1);
     }
 
-    if ((ret = entry_detect(buff)))
+    printf("Waiting for MCU, please cycle power: ");
+    if ((ret = chip_detect(recv)))
     {
         printf("** Failed to detect chip\n");
         exit(1);
     }
     else
     {
-        printf("\e[32mdone\e[0m\n");
+        printf("\e[32mdetected\e[0m\n");
     }
 
-    printf("Switching to \e[32m%d\e[0m baud, set chip: ", speed);
-    if ((ret = baudrate_set(speed, buff)))
+    /** lookup chip model */
+    chip_code = *(recv + 20);
+    chip_code = (chip_code << 8) + *(recv + 21);
+    stc_model = model_lookup(chip_code);
+    if (stc_model)
+    {
+        printf("Chip model: \e[32m%s\e[0m\n", stc_model->name);
+    }
+    else
+    {
+        printf("Chip model: \e[31munknown code: %04x\e[0m\n", chip_code);
+        exit(1);
+    }
+
+    /** lookup chip protocol */
+    stc_protocol = protocol_lookup(stc_model->protocol);
+    if (stc_protocol)
+    {
+        printf("Protocol: \e[32m%s\e[0m\n", stc_protocol->name);
+    }
+    else
+    {
+        printf("Protocol: \e[31munsupported protocol: %04x\e[0m\n", stc_model->protocol);
+        exit(1);
+    }
+    
+    printf("Switching to \e[32m%d\e[0m baud, chip: ", speed);
+    if ((ret = baudrate_set(stc_protocol, speed, recv)))
     {
         printf("failed\n");
         exit(1);
     }
     else
     {
-        printf("\e[32mdone\e[0m, ");
+        printf("\e[32mset\e[0m, ");
     }
     
-    printf("set host: ");
+    printf("host: ");
     if ((ret = termios_setup(speed, 8, 1, 'E')) < 0)
     {
         printf("failed\n");
@@ -149,24 +191,24 @@ int main(int argc, char *const argv[])
     }
     else
     {
-        printf("\e[32mdone\e[0m, ");
+        printf("\e[32mset\e[0m, ");
     }
 
-    printf("testing: ");
-    if ((ret = baudrate_check(buff)) < 0)
+    printf("ping: ");
+    if ((ret = baudrate_check(stc_protocol, recv)) < 0)
     {
         printf("failed\n");
         exit(1);
     }
     else
     {
-        printf("\e[32mdone\e[0m\n");
+        printf("\e[32msucc\e[0m\n");
     }
 
     if (flags & FLAG_ERASE)
     {
         printf("Erasing chip: ");
-        if ((ret = erase_flash(buff)) < 0)
+        if ((ret = flash_erase(stc_protocol, recv)) < 0)
         {
             printf("failed\n");
             exit(1);
@@ -178,14 +220,8 @@ int main(int argc, char *const argv[])
     }
 
     if (file) {
-        printf("Loading hex file: ");
-        if ((ret = load_hex_file(file)) < 0)
-        {
-            printf("Failed to load hex file\n");
-            exit(1);
-        }
-        printf("Writing flash, size %d: ", ret);
-        if ((ret = write_flash(ret)) < 0)
+        printf("Writing flash, size %d: ", hex_size);
+        if ((ret = flash_write(stc_protocol, hex_size)) < 0)
         {
             printf("failed\n");
         }

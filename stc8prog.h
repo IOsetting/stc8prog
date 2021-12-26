@@ -15,6 +15,7 @@
 #ifndef __STC8PROG_H__
 #define __STC8PROG_H__
 
+#include "stc8db.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -48,15 +49,15 @@ extern int termios_write(const void *data, unsigned long len);
 /* stc8prog.c */
 
 extern void set_debug(uint8_t val);
-extern int entry_detect(uint8_t *buff);
-extern int baudrate_set(unsigned int speed, uint8_t *buff);
-extern int baudrate_check(uint8_t *buff);
-extern int erase_flash(uint8_t *buff);
-extern int write_flash(unsigned int len);
+extern int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_t *recv);
+extern int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv);
+extern int flash_erase(const stc_protocol_t * stc_protocol, uint8_t *recv);
+extern int flash_write(const stc_protocol_t * stc_protocol, unsigned int len);
 
+extern int chip_detect(uint8_t *recv);
 extern int chip_write(uint8_t *buff, uint8_t len);
-extern int chip_read(uint8_t *buff, uint8_t len);
-extern int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content);
+extern int chip_read(uint8_t *recv);
+extern int chip_read_verify(uint8_t *buf, uint8_t size, uint8_t *recv);
 
 extern int load_hex_file(char *filename);
 extern int parse_hex_line(char *theline, int bytes[], int *addr, int *num, int *code);

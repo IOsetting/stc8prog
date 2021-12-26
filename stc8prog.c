@@ -19,6 +19,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define BUF_SIZE 255
+
 static uint8_t rx_prefix[] = {0x46, 0xb9, 0x68, 0x00};
 uint8_t debug = 0, memory[65536];
 
@@ -27,20 +29,13 @@ void set_debug(uint8_t val)
     debug = val;
 }
 
-int write_flash(unsigned int len)
+int flash_write(const stc_protocol_t * stc_protocol, unsigned int len)
 {
-    uint8_t 
-        *buff = (uint8_t [255]){},
-        *recv = (uint8_t [255]){},
-        arg[255] = {};
+    uint8_t *recv = (uint8_t [BUF_SIZE]){}, arg[BUF_SIZE] = {};
+    uint8_t cnt, count, arg_size = sizeof(stc_protocol->flash_write) - 2;
     unsigned int addr, offset;
-    uint8_t cnt, count;
     int ret;
-
-    arg[0] = 0x22;
-    arg[3] = 0x5a;
-    arg[4] = 0xa5;
-
+    memcpy(arg, stc_protocol->flash_write, arg_size);
     addr = 0;
     offset = 5;
 
@@ -63,175 +58,133 @@ int write_flash(unsigned int len)
 
         for (count = 0; count < 10; ++count)
         {
-            ret = chip_read(buff , 255);
-            if (ret <= 0)
+            if ((ret = chip_read(recv)) <= 0)
             {
                 DEBUG_PRINTF("read nothing\n");
                 continue;
             }
-            ret = chip_read_verify(buff, ret, recv);
-            if (ret > 0)
+            else if (*recv == stc_protocol->flash_write[arg_size] 
+                && *(recv + 1) == stc_protocol->flash_write[arg_size + 1])
             {
-                DEBUG_PRINTF("write flash received: %d\n", ret);
-                if (*recv == 0x02 && *(recv + 1) == 'T')
-                {
-                    printf("- ");
-                    arg[0] = 0x02;
-                    break;
-                }
-                else
-                {
-                    printf("unmatch 'T'\n");
-                    return -1;
-                }
+                printf("- ");
+                arg[0] = 0x02;
+                break;
+            }
+            else
+            {
+                printf("flash_write read unmatched\n");
+                return -1;
             }
         }
     }
     return 0;
 }
 
-int erase_flash(uint8_t *buff)
+int flash_erase(const stc_protocol_t * stc_protocol, uint8_t *recv)
 {
-    unsigned int count, ret;
-    uint8_t *recv = (uint8_t [255]){};
-    uint8_t arg[10] = {};
-    arg[0] = 0x03;
-    arg[1] = 0x00;
-    arg[2] = 0x00;
-    arg[3] = 0x5a;
-    arg[4] = 0xa5;
-
-    chip_write(arg, 5);
+    int ret;
+    uint8_t count, arg_size = sizeof(stc_protocol->flash_erase) - 1;
+    uint8_t arg[BUF_SIZE] = {};
+    memcpy(arg, stc_protocol->flash_erase, arg_size);
+    chip_write(arg, arg_size);
     for (count = 0; count < 10; ++count)
     {
-        ret = chip_read(buff , 255);
-        if (ret <= 0)
+        if ((ret = chip_read(recv)) <= 0)
         {
-            DEBUG_PRINTF("read nothing\n");
             continue;
         }
-        ret = chip_read_verify(buff, ret, recv);
-        if (ret > 0)
+        else if (*recv == stc_protocol->flash_erase[arg_size])
         {
-            DEBUG_PRINTF("erase flash received: %d\n", ret);
-            if (*recv == 0x03)
-            {
-                return 0;
-            }
-            else
-            {
-                printf("unmatch 0x05\n");
-                return 1;
-            }
+            return 0;
+        }
+        else
+        {
+            printf("erase_flash read unmatched\n");
+            return -1;
         }
     }
     return 1;
 }
 
-int baudrate_check(uint8_t *buff)
+int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv)
 {
-    usleep(100000);
-    unsigned int count, ret;
-    uint8_t *recv = (uint8_t [255]){};
-    uint8_t arg[10] = {};
-    arg[0] = 0x05;
-    arg[1] = 0x00;
-    arg[2] = 0x00;
-    arg[3] = 0x5a;
-    arg[4] = 0xa5;
+    usleep(10000);
+    int ret;
+    uint8_t count, arg_size = sizeof(stc_protocol->baud_check) - 1;
+    uint8_t arg[BUF_SIZE] = {};
+    memcpy(arg, stc_protocol->baud_check, arg_size);
 
     for (count = 0; count < 10; ++count) 
     {
-        chip_write(arg, 5);
-        ret = chip_read(buff , 255);
-        if (ret <= 0)
+        chip_write(arg, arg_size);
+        if ((ret = chip_read(recv)) <= 0)
         {
             continue;
         }
-        ret = chip_read_verify(buff, ret, recv);
-        if (ret > 0)
+        else if (*recv == stc_protocol->baud_check[arg_size])
         {
-            DEBUG_PRINTF("baudrate check received: %d\n", ret);
-            if (*recv == 0x05)
-            {
-                return 0;
-            }
-            else
-            {
-                printf("unmatch 0x05\n");
-                return 1;
-            }
+            return 0;
+        }
+        else
+        {
+            printf("baudrate_check read unmatched\n");
+            return -1;
         }
     }
     return 1;
 }
 
-int baudrate_set(unsigned int speed, uint8_t *buff)
+int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_t *recv)
 {
     unsigned int count, ret;
-    uint8_t *recv = (uint8_t [255]){};
-    uint8_t arg[255] = {};
-    arg[0] = 0x01;
-    arg[1] = *(buff + 4);
-    arg[2] = 0x40;
+    uint8_t arg_size = sizeof(stc_protocol->baud_switch) - 1;
+    uint8_t arg[BUF_SIZE] = {};
+    memcpy(arg, stc_protocol->baud_switch, arg_size);
+    arg[1] = *(recv + 4);
     arg[3] = HIBYTE(RL(speed));
     arg[4] = LOBYTE(RL(speed));
-    arg[5] = 0x00;
-    arg[6] = 0x00;
-    arg[7] = 0x97;
-
+ 
     for (count = 0; count < 10; ++count) 
     {
-        chip_write(arg, 8);
-        ret = chip_read(buff , 255);
-        if (ret <= 0)
+        chip_write(arg, arg_size);
+        if ((ret = chip_read(recv)) <= 0)
         {
             continue;
         }
-        ret = chip_read_verify(buff, ret, recv);
-        if (ret > 0)
+        else if (*recv == stc_protocol->baud_switch[arg_size])
         {
-            DEBUG_PRINTF("baudrate set received: %d\n", ret);
-            if (*recv == 0x01)
-            {
-                return 0;
-            }
-            else
-            {
-                printf("unmatch 0x01\n");
-                return 1;
-            }
+            return 0;
+        }
+        else
+        {
+            printf("baudrate_set read unmatched\n");
+            return -1;
         }
     }
     return 1;
 }
 
-int entry_detect(uint8_t *buff)
+int chip_detect(uint8_t *recv)
 {
-    uint8_t *recv = (uint8_t [255]){};
     unsigned int count;
     int ret;
 
-    printf("Waiting for MCU, please cycle power: ");
     for (count = 0; count < 100; count++) 
     {
         termios_write(&(uint8_t){0x7F}, 1);
-        if ((ret = chip_read(buff , 255)) <= 0)
+        if ((ret = chip_read(recv)) <= 0)
         {
             printf(".");
             continue;
         }
-        if ((ret = chip_read_verify(buff, ret, recv)) > 0)
+        else if (*recv == 0x50)
         {
-            if (*recv == 0x50)
-            {
-                return 0;
-            }
-            else
-            {
-                printf("entry_detect read unmatched\n");
-                return -1;
-            }
+            return 0;
+        }
+        else
+        {
+            printf("entry_detect read unmatched\n");
+            return -1;
         }
     }
     printf("timeout\n");
@@ -261,15 +214,15 @@ int chip_write(uint8_t *buff, uint8_t len)
     return 0;
 }
 
-int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
+int chip_read_verify(uint8_t *buf, uint8_t size, uint8_t *recv)
 {
     uint16_t RecvSum;
     uint8_t tmp, RecvCount, RecvIndex;
     int flag = 0;
 
-    while(len-- > 0)
+    while(size-- > 0)
     {
-        tmp = *rx++;
+        tmp = *buf++;
         DEBUG_PRINTF("0x%02X ", tmp);
         switch (flag)
         {
@@ -279,6 +232,7 @@ int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
                     DEBUG_PRINTF("end byte unmatched\n");
                     return -1;
                 }
+                DEBUG_PRINTF("8 -> end\n");
                 return RecvIndex;
             case 7:
                 DEBUG_PRINTF("sum check: 0x%02X ", LOBYTE(RecvSum));
@@ -287,23 +241,23 @@ int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
                     DEBUG_PRINTF("low byte of sum unmatched\n");
                     return -1;
                 }
-                DEBUG_PRINTF("\n");
+                DEBUG_PRINTF("7 -> 8\n");
                 flag = 8;
                 break;
             case 6:
-                DEBUG_PRINTF("sum check: 0x%02X ", HIBYTE(RecvSum));
+                DEBUG_PRINTF("sum: 0x%02X ", HIBYTE(RecvSum));
                 if (tmp != HIBYTE(RecvSum))
                 {
                     DEBUG_PRINTF("high byte of sum unmatched\n");
                     return -1;
                 }
-                DEBUG_PRINTF("\n");
                 flag = 7;
+                DEBUG_PRINTF("6 -> 7\n");
                 break;
             case 5:
                 RecvSum += tmp;
-                content[RecvIndex++] = tmp;
-                DEBUG_PRINTF("0x%02X, RecvSum:%04X, RecvCount:%d, RecvIndex:%d\n", tmp, RecvSum, RecvCount, RecvIndex);
+                recv[RecvIndex++] = tmp;
+                DEBUG_PRINTF("sum:%04X, count:%d, index:%d\n", RecvSum, RecvCount, RecvIndex);
                 if (RecvIndex == RecvCount)
                 {
                     flag = 6;
@@ -314,7 +268,7 @@ int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
                 RecvCount = tmp - 6;
                 RecvIndex = 0;
                 flag = 5;
-                DEBUG_PRINTF("0x%02X, RecvSum:%04X, RecvCount:%d, RecvIndex:0, #5\n", tmp, RecvSum, RecvCount);
+                DEBUG_PRINTF("sum:%04X, count:%d, index:0, 4 -> 5\n", RecvSum, RecvCount);
                 break;
             case 3:
                 if (tmp != rx_prefix[3])
@@ -323,6 +277,7 @@ int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
                     return -1;
                 }
                 flag = 4;
+                DEBUG_PRINTF("3 -> 4\n");
                 break;
             case 2:
                 if (tmp != rx_prefix[2])
@@ -331,6 +286,7 @@ int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
                     return -1;
                 }
                 flag = 3;
+                DEBUG_PRINTF("2 -> 3\n");
                 break;
             case 1:
                 if (tmp != rx_prefix[1])
@@ -339,6 +295,7 @@ int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
                     return -1;
                 }
                 flag = 2;
+                DEBUG_PRINTF("1 -> 2\n");
                 break;
             case 0:
             default:
@@ -347,16 +304,19 @@ int chip_read_verify(uint8_t *rx, uint8_t len, uint8_t *content)
                     return -1;
                 }
                 flag = 1;
+                DEBUG_PRINTF("0 -> 1\n");
         }
     }
     return 0;
 }
 
-int chip_read(uint8_t *buff, uint8_t len)
+int chip_read(uint8_t *recv)
 {
-    uint8_t *rx = (uint8_t [255]){}, *rx_p;
+    /** rx for each rx read, buf to store whole rx */
+    uint8_t *rx = (uint8_t [BUF_SIZE]){}, *buf = (uint8_t [BUF_SIZE]){}, *rx_p;
     int ret, size = 0;
-    while((ret = termios_read(rx, 255)) > 0)
+    /** read till no more rx */
+    while((ret = termios_read(rx, 255)) > 0 && size < BUF_SIZE)
     {
         rx_p = rx;
         if (ret > 0)
@@ -369,21 +329,25 @@ int chip_read(uint8_t *buff, uint8_t len)
             DEBUG_PRINTF("\n");
             while (ret-- > 0)
             {
-                *buff++ = *rx_p++;
-                size++;
-                if (size == len)
+                *(buf + (size++)) = *rx_p++;
+                if (size >= BUF_SIZE)
                 {
-                    return size;
+                    break;
                 }
             }
         }
     }
+    /** if error ocurs */
     if (ret < 0)
     {
         printf("termios_read error...\n");
-        return ret;
     }
-    return size;
+    if (size == 0)
+    {
+        return size;
+    }
+    /** verification */
+    return chip_read_verify(buf, size, recv);
 }
 
 /* parses a line of intel hex code, stores the data in bytes[] */
@@ -391,9 +355,7 @@ int chip_read(uint8_t *buff, uint8_t len)
 /* line was valid, or a 0 if an error occured.  The variable */
 /* num gets the number of bytes that were stored into bytes[] */
 
-int parse_hex_line(theline, bytes, addr, num, code)
-char *theline;
-int *addr, *num, *code, bytes[];
+int parse_hex_line(char *theline, int bytes[], int *addr, int *num, int *code)
 {
 	int sum, len, cksum;
 	char *ptr;
