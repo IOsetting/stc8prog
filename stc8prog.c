@@ -183,11 +183,11 @@ int chip_detect(uint8_t *recv)
         }
         else
         {
-            printf("entry_detect read unmatched\n");
+            printf("entry_detect read unmatched ");
             return -1;
         }
     }
-    printf("timeout\n");
+    printf("timeout ");
     return -1;
 }
 

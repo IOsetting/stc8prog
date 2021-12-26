@@ -131,14 +131,14 @@ int main(int argc, char *const argv[])
 
     if ((ret = termios_setup(MINBAUD, 8, 1, 'E')))
     {
-        printf("** Failed to communicate chip with baudrate %d\n", MINBAUD);
+        printf("\e[31mfailed to communicate chip with baudrate %d\e[0m\n", MINBAUD);
         exit(1);
     }
 
     printf("Waiting for MCU, please cycle power: ");
     if ((ret = chip_detect(recv)))
     {
-        printf("** Failed to detect chip\n");
+        printf("\e[31mfailed to detect chip\e[0m\n");
         exit(1);
     }
     else
