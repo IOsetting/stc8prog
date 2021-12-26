@@ -4,3 +4,5 @@ build/
 /stc8prog
 *.o
 *.hex
+*.tar
+*.gz

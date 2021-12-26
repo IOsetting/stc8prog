@@ -11,12 +11,16 @@ built according to the ISP described in STC8H datasheet.
 
 ### Tested MCU Types:
 
+* STC8A8K64S4A12
+* STC8A8K64D4
 * STC8G1K08A
 * STC8H1K08
 * STC8H3K32S2
-* STC8A8K64D4
+* STC8H3K64S4
 
 # How To Use
+
+## CLI Tool
 
 ```
 Usage: stc8prog [options]...
@@ -61,6 +65,51 @@ High baudrate will speed up the writing
 ```bash
 ./stc8prog -p /dev/ttyUSB0 -s 1152000 -e -f foo.hex
 ```
+
+## PlatformIO Integration
+
+### 1. Add it to packages 
+
+By default PlatformIO places packages at `/home/[username]/.platformio/packages`, create a folder named
+`tool-stc8prog` under it, and place stc8prog executable under it.
+
+### 2. Configurate platformio.ini
+
+Create a new env in platformio.ini, it can be a clone of existing one, change the name and change `upload_protocol` 
+option to custom, then configurate the rest accordingly, for example:
+```
+[env:stc8h3k32s2-stc8prog]
+platform = intel_mcs51
+board = stc8h3k32s2
+upload_protocol = custom
+upload_port = /dev/ttyUSB0
+upload_flags =
+    -p
+    $UPLOAD_PORT
+    -s
+    1152000
+    -e
+upload_command = ${platformio.packages_dir}/tool-stc8prog/stc8prog $UPLOAD_FLAGS -f $SOURCE
+```
+If you want to make this env default, set it to `default_envs`
+```
+[platformio]
+default_envs = stc8h3k32s2-stc8prog
+```
+
+For more options, please read [platformio section_env_upload](https://docs.platformio.org/en/latest/projectconf/section_env_upload.html)
+
+### 3. First time upload
+
+You can trigger upload with hotkey `Ctrl`+`Alt`+`U`. 
+
+If there are any erros and you want to see more detailed logs, run it in the verbose way:
+
+* Click PlatformIO icon in the left navigation panel
+* Expand `[your env name]` in `PROJECT TASKS`
+* Expand `Advanced`
+* Click `Verbose Upload`, this will output the full log of all commands
+
 
 # Build From Source
 

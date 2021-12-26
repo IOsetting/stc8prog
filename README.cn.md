@@ -9,12 +9,16 @@ STC8H/STC8G/STC8A8K64D4 系列芯片的问题.
 
 ### 已测试通过的型号:
 
+* STC8A8K64S4A12
+* STC8A8K64D4
 * STC8G1K08A
 * STC8H1K08
 * STC8H3K32S2
-* STC8A8K64D4
+* STC8H3K64S4
 
 # 使用
+
+## 命令行工具
 
 烧录时需要对MCU重新加电, 过程和stcgal, 以及官方的stc-isp工具是一样的.
 
@@ -62,6 +66,48 @@ Baudrate options:
 ```bash
 ./stc8prog -p /dev/ttyUSB0 -s 1152000 -e -f foo.hex
 ```
+
+## 集成到PlatformIO
+
+### 1. 添加到 packages 
+
+PlatformIO的packages目录默认路径是 `/home/[username]/.platformio/packages`
+1. 在下面新建一个目录 tool-stc8prog
+1. 将可执行文件 stc8prog 复制到这个目录下
+
+### 2. Configurate platformio.ini
+
+在项目的platformio.ini中新建一个env, 可以用现有的env复制创建, 修改upload为custom, 并增加对应的配置参数, 下面是一个例子
+```
+[env:stc8h3k32s2-stc8prog]
+platform = intel_mcs51
+board = stc8h3k32s2
+upload_protocol = custom
+upload_port = /dev/ttyUSB0
+upload_flags =
+    -p
+    $UPLOAD_PORT
+    -s
+    1152000
+    -e
+upload_command = ${platformio.packages_dir}/tool-stc8prog/stc8prog $UPLOAD_FLAGS -f $SOURCE
+```
+如果需要将其设置为默认, 在 default_envs 中设置
+```
+[platformio]
+default_envs = stc8h3k32s2-stc8prog
+```
+更多说明和配置项请参考文档 [platformio section_env_upload](https://docs.platformio.org/en/latest/projectconf/section_env_upload.html)
+
+### 3. 烧录
+
+通过菜单或快捷键 `Ctrl`+`Alt`+`U` 开始烧录, 如果过程中出现错误, 需要看到更多的日志信息, 可以通过verbose方式
+
+1. 点击左侧导航栏中PlatformIO的图标
+1. 在`PROJECT TASKS`中, 点击展开`[your env name]`
+1. 在里面点击展开 `Advanced`
+1. 点击 `Verbose Upload`, 这样会输出完整的命令行信息
+
 
 # 从源码构建
 
