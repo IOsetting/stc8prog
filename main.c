@@ -77,7 +77,8 @@ int main(int argc, char *const argv[])
     const stc_model_t *stc_model;
     const stc_protocol_t *stc_protocol;
     uint8_t *recv = (uint8_t [255]){};
-    uint16_t chip_code;
+    uint16_t chip_code, chip_version, chip_minor_version, chip_stepping;
+    uint32_t chip_fosc;
 
     /** No buffer, disable buffering on stdout  */
     setbuf(stdout, NULL);
@@ -146,21 +147,20 @@ int main(int argc, char *const argv[])
         printf("\e[32mdetected\e[0m\n");
     }
 
-    /** lookup chip model */
+    /** chip model */
     chip_code = *(recv + 20);
     chip_code = (chip_code << 8) + *(recv + 21);
     stc_model = model_lookup(chip_code);
     if (stc_model)
     {
-        printf("Chip model: \e[32m%s\e[0m\n", stc_model->name);
+        printf("MCU type: \e[32m%s\e[0m\n", stc_model->name);
     }
     else
     {
-        printf("Chip model: \e[31munknown code: %04x\e[0m\n", chip_code);
+        printf("MCU type: \e[31munknown code: %04x\e[0m\n", chip_code);
         exit(1);
     }
-
-    /** lookup chip protocol */
+    /** chip protocol */
     stc_protocol = protocol_lookup(stc_model->protocol);
     if (stc_protocol)
     {
@@ -171,7 +171,29 @@ int main(int argc, char *const argv[])
         printf("Protocol: \e[31munsupported protocol: %04x\e[0m\n", stc_model->protocol);
         exit(1);
     }
-    
+
+    /** f/w version */
+    chip_version = *(recv + 17);
+    chip_stepping = *(recv + 18);
+    chip_minor_version = *(recv + 22);
+    printf("F/W version: \e[32m%d.%d.%d%c\e[0m\n", 
+        chip_version >> 4, chip_version & 0x0F, chip_minor_version & 0x0F, chip_stepping);
+
+    /** chip fosc */
+    chip_fosc = (*(recv + stc_protocol->info_pos_fosc) << 24) 
+            + (*(recv + stc_protocol->info_pos_fosc + 1) << 16) 
+            + (*(recv + stc_protocol->info_pos_fosc + 2) << 8) 
+            + *(recv + stc_protocol->info_pos_fosc + 3);
+    printf("IRC frequency(Hz): ");
+    if (chip_fosc == 0xffffffff)
+    {
+        printf("\e[32munadjusted\e[0m\n");
+    }
+    else
+    {
+        printf("\e[32m%u\e[0m\n", chip_fosc);
+    }
+
     printf("Switching to \e[32m%d\e[0m baud, chip: ", speed);
     if ((ret = baudrate_set(stc_protocol, speed, recv)))
     {
@@ -184,7 +206,7 @@ int main(int argc, char *const argv[])
     }
     
     printf("host: ");
-    if ((ret = termios_setup(speed, 8, 1, 'E')) < 0)
+    if ((ret = termios_set_speed(speed)) < 0)
     {
         printf("failed\n");
         exit(1);
@@ -195,7 +217,7 @@ int main(int argc, char *const argv[])
     }
 
     printf("ping: ");
-    if ((ret = baudrate_check(stc_protocol, recv)) < 0)
+    if ((ret = baudrate_check(stc_protocol, recv, chip_version)) != 0)
     {
         printf("failed\n");
         exit(1);

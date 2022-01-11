@@ -16,10 +16,18 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+/**
+ * info_pos_fosc;
+ * baud_switch
+ * baud_check
+ * flash_erase
+ * flash_write
+*/
 static const stc_protocol_t protocols[] = {
     {
         "STC8G/8H",
         PROTOCOL_STC8GH, 
+        1,
         {0x01, 0xFF, 0x40, 0xFF, 0xFF, 0x00, 0x00, 0x97, 0x01}, 
         {0x05, 0x00, 0x00, 0x5A, 0xA5, 0x05}, 
         {0x03, 0x00, 0x00, 0x5A, 0xA5, 0x03}, 
@@ -28,7 +36,17 @@ static const stc_protocol_t protocols[] = {
     {
         "STC8A/8F",
         PROTOCOL_STC8AF, 
+        1,
         {0x01, 0xFF, 0x40, 0xFF, 0xFF, 0x00, 0x00, 0x81, 0x01}, 
+        {0x05, 0x00, 0x00, 0x5A, 0xA5, 0x05}, 
+        {0x03, 0x00, 0x00, 0x5A, 0xA5, 0x03}, 
+        {0x22, 0xFF, 0xFF, 0x5A, 0xA5, 0x02, 'T'}
+    },
+    {
+        "STC15",
+        PROTOCOL_STC15, 
+        8,
+        {0x01, 0xFF, 0x40, 0xFF, 0xFF, 0x00, 0x00, 0xC3, 0x01}, 
         {0x05, 0x00, 0x00, 0x5A, 0xA5, 0x05}, 
         {0x03, 0x00, 0x00, 0x5A, 0xA5, 0x03}, 
         {0x22, 0xFF, 0xFF, 0x5A, 0xA5, 0x02, 'T'}
@@ -768,7 +786,7 @@ static const stc_model_t models[] = {
 {"STC15W101"         , 0xF2A1, PROTOCOL_UNSUPP,  8192,  1024,  4096},
 {"STC15W102"         , 0xF2A2, PROTOCOL_UNSUPP,  8192,  2048,  3072},
 {"STC15W103"         , 0xF2A3, PROTOCOL_UNSUPP,  8192,  3072,  2048},
-{"STC15W104"         , 0xF2A4, PROTOCOL_UNSUPP,  8192,  4096,  1024},
+{"STC15W104"         , 0xF2A4, PROTOCOL_STC15 ,  8192,  4096,  1024},
 {"IAP15W105"         , 0xF2A5, PROTOCOL_UNSUPP,  8192,  5120,     0},
 {"IRC15W107"         , 0xF2A6, PROTOCOL_UNSUPP,  8192,  7168,     0},
 {"IAP15F105W"        , 0xF2B5, PROTOCOL_UNSUPP,  8192,  5120,     0},

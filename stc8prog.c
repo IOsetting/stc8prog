@@ -21,12 +21,42 @@
 
 #define BUF_SIZE 255
 
-static uint8_t rx_prefix[] = {0x46, 0xb9, 0x68, 0x00};
+const uint8_t tx_detect[] = {0x7f, 0x7f, 0x7f};
+const uint8_t tx_prefix[] = {0x46, 0xb9, 0x6a, 0x00};
+const uint8_t tx_suffix[] = {0x16};
+const uint8_t rx_prefix[] = {0x46, 0xb9, 0x68, 0x00};
 uint8_t debug = 0, memory[65536];
 
 void set_debug(uint8_t val)
 {
     debug = val;
+}
+
+int chip_detect(uint8_t *recv)
+{
+    unsigned int count;
+    int ret;
+
+    for (count = 0; count < 100; count++) 
+    {
+        termios_write(tx_detect, sizeof(tx_detect));
+        if ((ret = chip_read(recv)) <= 0)
+        {
+            printf(".");
+            continue;
+        }
+        else if (*recv == 0x50)
+        {
+            return 0;
+        }
+        else
+        {
+            printf("entry_detect read unmatched ");
+            return -1;
+        }
+    }
+    printf("timeout ");
+    return -1;
 }
 
 int flash_write(const stc_protocol_t * stc_protocol, unsigned int len)
@@ -106,7 +136,7 @@ int flash_erase(const stc_protocol_t * stc_protocol, uint8_t *recv)
     return 1;
 }
 
-int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv)
+int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv, uint8_t chip_version)
 {
     usleep(10000);
     int ret;
@@ -114,9 +144,18 @@ int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv)
     uint8_t arg[BUF_SIZE] = {};
     memcpy(arg, stc_protocol->baud_check, arg_size);
 
-    for (count = 0; count < 10; ++count) 
+    if (chip_version < 0x72)
+    {
+        chip_write(arg, 1);
+    }
+    else
     {
         chip_write(arg, arg_size);
+    }
+
+    for (count = 0; count < 20; ++count) 
+    {
+        
         if ((ret = chip_read(recv)) <= 0)
         {
             continue;
@@ -141,10 +180,23 @@ int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_
     uint8_t arg[BUF_SIZE] = {};
     memcpy(arg, stc_protocol->baud_switch, arg_size);
     arg[1] = *(recv + 4);
-    arg[3] = HIBYTE(RL(speed));
-    arg[4] = LOBYTE(RL(speed));
- 
-    for (count = 0; count < 10; ++count) 
+    if (stc_protocol->id == PROTOCOL_STC15)
+    {
+        count = 65536 - FUSER / speed;
+        arg[3] = (count >> 8) & 0xFF;
+        arg[4] = count & 0xFF;
+        count = 65536 - FUSER / speed / 2 * 3;
+        arg[5] = (count >> 8) & 0xFF;
+        arg[6] = count & 0xFF;
+    }
+    else
+    {
+        count = 65536 - FUSER / 4 / speed;
+        arg[3] = (count >> 8) & 0xFF;
+        arg[4] = count & 0xFF;
+    }
+
+    for (count = 0; count < 10; ++count)
     {
         chip_write(arg, arg_size);
         if ((ret = chip_read(recv)) <= 0)
@@ -164,52 +216,29 @@ int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_
     return 1;
 }
 
-int chip_detect(uint8_t *recv)
-{
-    unsigned int count;
-    int ret;
-
-    for (count = 0; count < 100; count++) 
-    {
-        termios_write(&(uint8_t){0x7F}, 1);
-        if ((ret = chip_read(recv)) <= 0)
-        {
-            printf(".");
-            continue;
-        }
-        else if (*recv == 0x50)
-        {
-            return 0;
-        }
-        else
-        {
-            printf("entry_detect read unmatched ");
-            return -1;
-        }
-    }
-    printf("timeout ");
-    return -1;
-}
-
 int chip_write(uint8_t *buff, uint8_t len)
 {
     uint16_t sum;
-    uint8_t i;
-    DEBUG_PRINTF("TX: ");
-    termios_write(&(uint8_t){0x46}, 1);
-    termios_write(&(uint8_t){0xb9}, 1);
-    termios_write(&(uint8_t){0x6a}, 1);
-    termios_write(&(uint8_t){0x00}, 1);
+    uint8_t i, *tx_buf = (uint8_t [BUF_SIZE]){}, *tx_pt = tx_buf;
+    memcpy(tx_pt, tx_prefix, sizeof(tx_prefix));
+    tx_pt += sizeof(tx_prefix);
+    *tx_pt++ = len + 6;
     sum = len + 6 + 0x6a;
-    termios_write(&(uint8_t){len + 6}, 1);
     for (i = 0; i < len; i++)
     {
         sum += *(buff + i);
-        termios_write(&(uint8_t){*(buff + i)}, 1);
+        *tx_pt++ = *(buff + i);
     }
-    termios_write(&(uint8_t){HIBYTE(sum)}, 1);
-    termios_write(&(uint8_t){LOBYTE(sum)}, 1);
-    termios_write(&(uint8_t){0x16}, 1);
+    *tx_pt++ = HIBYTE(sum);
+    *tx_pt++ = LOBYTE(sum);
+    memcpy(tx_pt, tx_suffix, sizeof(tx_suffix));
+    tx_pt += sizeof(tx_suffix);
+    termios_write(tx_buf, tx_pt - tx_buf);
+    DEBUG_PRINTF("TX: ");
+    for (i = 0; i < tx_pt - tx_buf; i++)
+    {
+        DEBUG_PRINTF("%02X ", *(tx_buf + i));
+    }
     DEBUG_PRINTF("\n");
     return 0;
 }

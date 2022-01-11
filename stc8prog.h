@@ -50,7 +50,7 @@ extern int termios_write(const void *data, unsigned long len);
 
 extern void set_debug(uint8_t val);
 extern int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_t *recv);
-extern int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv);
+extern int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv, uint8_t chip_version);
 extern int flash_erase(const stc_protocol_t * stc_protocol, uint8_t *recv);
 extern int flash_write(const stc_protocol_t * stc_protocol, unsigned int len);
 
