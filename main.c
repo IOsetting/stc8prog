@@ -230,20 +230,20 @@ int main(int argc, char *const argv[])
     if (flags & FLAG_ERASE)
     {
         printf("Erasing chip: ");
-        if ((ret = flash_erase(stc_protocol, recv)) < 0)
+        if ((ret = flash_erase(stc_protocol, recv)) != 0)
         {
             printf("failed\n");
             exit(1);
         }
         else
         {
-            printf("\e[32mdone\e[0m\n");
+            printf("\e[32msucc\e[0m\n");
         }
     }
 
     if (file) {
         printf("Writing flash, size %d: ", hex_size);
-        if ((ret = flash_write(stc_protocol, hex_size)) < 0)
+        if ((ret = flash_write(stc_protocol, hex_size)) != 0)
         {
             printf("failed\n");
         }

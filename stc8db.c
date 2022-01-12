@@ -43,6 +43,15 @@ static const stc_protocol_t protocols[] = {
         {0x22, 0xFF, 0xFF, 0x5A, 0xA5, 0x02, 'T'}
     },
     {
+        "STC15B",
+        PROTOCOL_STC15B, 
+        8,
+        {0x01, 0xFF, 0x40, 0xFF, 0xFF, 0x00, 0x00, 0xC3, 0x01}, 
+        {0x05, 0x00, 0x00, 0x5A, 0xA5, 0x05}, 
+        {0x03, 0x00, 0x00, 0x5A, 0xA5, 0x03}, 
+        {0x22, 0xFF, 0xFF, 0x5A, 0xA5, 0x02, 'T'}
+    },
+    {
         "STC15",
         PROTOCOL_STC15, 
         8,
@@ -775,7 +784,7 @@ static const stc_model_t models[] = {
 {"STC15F101W"        , 0xF291, PROTOCOL_UNSUPP,  8192,  1024,  4096},
 {"STC15F102W"        , 0xF292, PROTOCOL_UNSUPP,  8192,  2048,  3072},
 {"STC15F103W"        , 0xF293, PROTOCOL_UNSUPP,  8192,  3072,  2048},
-{"STC15F104W"        , 0xF294, PROTOCOL_UNSUPP,  8192,  4096,  1024},
+{"STC15F104W"        , 0xF294, PROTOCOL_STC15 ,  8192,  4096,  1024},
 {"STC15F104E"        , 0xF294, PROTOCOL_UNSUPP,  8192,  4096,  1024},
 {"STC15F100"         , 0xF298, PROTOCOL_UNSUPP,  8192,   512,     0},
 {"STC15F101"         , 0xF299, PROTOCOL_UNSUPP,  8192,  1024,  4096},
@@ -965,7 +974,7 @@ static const stc_model_t models[] = {
 {"STC15W410S"        , 0xF51B, PROTOCOL_UNSUPP, 16384, 10240,  3072},
 {"STC15W412S"        , 0xF51C, PROTOCOL_UNSUPP, 16384, 12288,  1024},
 {"STC15W404AS"       , 0xF51E, PROTOCOL_UNSUPP, 16384,  4096,  9216},
-{"STC15W408AS"       , 0xF51F, PROTOCOL_UNSUPP, 16384,  8192,  5120},
+{"STC15W408AS"       , 0xF51F, PROTOCOL_STC15B, 16384,  8192,  5120},
 {"STC15W410AS"       , 0xF520, PROTOCOL_UNSUPP, 16384, 10240,  3072},
 {"STC15W412AS"       , 0xF521, PROTOCOL_UNSUPP, 16384, 12288,  1024},
 {"STC15W4K16S4"      , 0xF523, PROTOCOL_UNSUPP, 65536, 16384, 44032},

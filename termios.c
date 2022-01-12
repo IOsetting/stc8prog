@@ -175,7 +175,7 @@ int termios_open(char *path)
         return -EALREADY;
 
     ttys = open(path, O_RDWR | O_NOCTTY | O_NDELAY);
-    fcntl(ttys, F_SETFL, 0);
+    fcntl(ttys, F_SETFL, O_NDELAY);
 
     return ttys < 0 ? ttys : 0;
 }

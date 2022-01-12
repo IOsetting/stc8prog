@@ -25,7 +25,8 @@
 #define PROTOCOL_UNSUPP    0x0000
 #define PROTOCOL_STC8GH    0x0001
 #define PROTOCOL_STC8AF    0x0002
-#define PROTOCOL_STC15     0x0003
+#define PROTOCOL_STC15B    0x0003
+#define PROTOCOL_STC15     0x0004
 
 
 typedef struct _model_paras {

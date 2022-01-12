@@ -21,7 +21,7 @@
 
 #define BUF_SIZE 255
 
-const uint8_t tx_detect[] = {0x7f, 0x7f, 0x7f};
+const uint8_t tx_detect[] = {0x7f};
 const uint8_t tx_prefix[] = {0x46, 0xb9, 0x6a, 0x00};
 const uint8_t tx_suffix[] = {0x16};
 const uint8_t rx_prefix[] = {0x46, 0xb9, 0x68, 0x00};
@@ -34,15 +34,16 @@ void set_debug(uint8_t val)
 
 int chip_detect(uint8_t *recv)
 {
-    unsigned int count;
+    uint16_t count;
     int ret;
 
-    for (count = 0; count < 100; count++) 
+    for (count = 0; count < 0x7FF; count++) 
     {
         termios_write(tx_detect, sizeof(tx_detect));
         if ((ret = chip_read(recv)) <= 0)
         {
-            printf(".");
+            if (count % 0x0F == 0) printf(".");
+            if (count % 0x1FF == 0) printf("\n");
             continue;
         }
         else if (*recv == 0x50)
@@ -57,6 +58,50 @@ int chip_detect(uint8_t *recv)
     }
     printf("timeout ");
     return -1;
+}
+
+int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_t *recv)
+{
+    unsigned int count, ret;
+    uint8_t arg_size = sizeof(stc_protocol->baud_switch) - 1;
+    uint8_t arg[BUF_SIZE] = {};
+    memcpy(arg, stc_protocol->baud_switch, arg_size);
+    arg[1] = *(recv + 4);
+    if (stc_protocol->id == PROTOCOL_STC15)
+    {
+        count = 65536 - FUSER / speed;
+        arg[3] = (count >> 8) & 0xFF;
+        arg[4] = count & 0xFF;
+        count = 65536 - FUSER / speed / 2 * 3;
+        arg[5] = (count >> 8) & 0xFF;
+        arg[6] = count & 0xFF;
+    }
+    else
+    {
+        count = 65536 - FUSER / 4 / speed;
+        arg[3] = (count >> 8) & 0xFF;
+        arg[4] = count & 0xFF;
+    }
+
+    chip_write(arg, arg_size);
+
+    for (count = 0; count < 0xFF; ++count)
+    {
+        if ((ret = chip_read(recv)) <= 0)
+        {
+            continue;
+        }
+        else if (*recv == stc_protocol->baud_switch[arg_size])
+        {
+            return 0;
+        }
+        else
+        {
+            printf("baudrate_set read unmatched\n");
+            return -1;
+        }
+    }
+    return 1;
 }
 
 int flash_write(const stc_protocol_t * stc_protocol, unsigned int len)
@@ -117,7 +162,7 @@ int flash_erase(const stc_protocol_t * stc_protocol, uint8_t *recv)
     uint8_t arg[BUF_SIZE] = {};
     memcpy(arg, stc_protocol->flash_erase, arg_size);
     chip_write(arg, arg_size);
-    for (count = 0; count < 10; ++count)
+    for (count = 0; count < 0xFF; ++count)
     {
         if ((ret = chip_read(recv)) <= 0)
         {
@@ -153,9 +198,8 @@ int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv, uint8_t c
         chip_write(arg, arg_size);
     }
 
-    for (count = 0; count < 20; ++count) 
+    for (count = 0; count < 0xFF; ++count) 
     {
-        
         if ((ret = chip_read(recv)) <= 0)
         {
             continue;
@@ -167,49 +211,6 @@ int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv, uint8_t c
         else
         {
             printf("baudrate_check read unmatched\n");
-            return -1;
-        }
-    }
-    return 1;
-}
-
-int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_t *recv)
-{
-    unsigned int count, ret;
-    uint8_t arg_size = sizeof(stc_protocol->baud_switch) - 1;
-    uint8_t arg[BUF_SIZE] = {};
-    memcpy(arg, stc_protocol->baud_switch, arg_size);
-    arg[1] = *(recv + 4);
-    if (stc_protocol->id == PROTOCOL_STC15)
-    {
-        count = 65536 - FUSER / speed;
-        arg[3] = (count >> 8) & 0xFF;
-        arg[4] = count & 0xFF;
-        count = 65536 - FUSER / speed / 2 * 3;
-        arg[5] = (count >> 8) & 0xFF;
-        arg[6] = count & 0xFF;
-    }
-    else
-    {
-        count = 65536 - FUSER / 4 / speed;
-        arg[3] = (count >> 8) & 0xFF;
-        arg[4] = count & 0xFF;
-    }
-
-    for (count = 0; count < 10; ++count)
-    {
-        chip_write(arg, arg_size);
-        if ((ret = chip_read(recv)) <= 0)
-        {
-            continue;
-        }
-        else if (*recv == stc_protocol->baud_switch[arg_size])
-        {
-            return 0;
-        }
-        else
-        {
-            printf("baudrate_set read unmatched\n");
             return -1;
         }
     }
@@ -243,140 +244,185 @@ int chip_write(uint8_t *buff, uint8_t len)
     return 0;
 }
 
-int chip_read_verify(uint8_t *buf, uint8_t size, uint8_t *recv)
+/**
+ * return flag;
+*/
+uint8_t flag_check(uint8_t ch)
 {
-    uint16_t RecvSum;
-    uint8_t tmp, RecvCount, RecvIndex;
-    int flag = 0;
-
-    while(size-- > 0)
+    static uint8_t rx_flag = 0;
+    static uint16_t rx_sum, rx_index, rx_count;
+    switch (rx_flag)
     {
-        tmp = *buf++;
-        DEBUG_PRINTF("0x%02X ", tmp);
-        switch (flag)
-        {
-            case 8:
-                if (tmp != 0x16)
-                {
-                    DEBUG_PRINTF("end byte unmatched\n");
-                    return -1;
-                }
-                DEBUG_PRINTF("8 -> end\n");
-                return RecvIndex;
-            case 7:
-                DEBUG_PRINTF("sum check: 0x%02X ", LOBYTE(RecvSum));
-                if (tmp != LOBYTE(RecvSum))
-                {
-                    DEBUG_PRINTF("low byte of sum unmatched\n");
-                    return -1;
-                }
-                DEBUG_PRINTF("7 -> 8\n");
-                flag = 8;
-                break;
-            case 6:
-                DEBUG_PRINTF("sum: 0x%02X ", HIBYTE(RecvSum));
-                if (tmp != HIBYTE(RecvSum))
-                {
-                    DEBUG_PRINTF("high byte of sum unmatched\n");
-                    return -1;
-                }
-                flag = 7;
-                DEBUG_PRINTF("6 -> 7\n");
-                break;
-            case 5:
-                RecvSum += tmp;
-                recv[RecvIndex++] = tmp;
-                DEBUG_PRINTF("sum:%04X, count:%d, index:%d\n", RecvSum, RecvCount, RecvIndex);
-                if (RecvIndex == RecvCount)
-                {
-                    flag = 6;
-                }
-                break;
-            case 4:
-                RecvSum = 0x68 + tmp;
-                RecvCount = tmp - 6;
-                RecvIndex = 0;
-                flag = 5;
-                DEBUG_PRINTF("sum:%04X, count:%d, index:0, 4 -> 5\n", RecvSum, RecvCount);
-                break;
-            case 3:
-                if (tmp != rx_prefix[3])
-                {
-                    DEBUG_PRINTF("flag 3 unmatch\n");
-                    return -1;
-                }
-                flag = 4;
-                DEBUG_PRINTF("3 -> 4\n");
-                break;
-            case 2:
-                if (tmp != rx_prefix[2])
-                {
-                    DEBUG_PRINTF("flag 2 unmatch\n");
-                    return -1;
-                }
-                flag = 3;
-                DEBUG_PRINTF("2 -> 3\n");
-                break;
-            case 1:
-                if (tmp != rx_prefix[1])
-                {
-                    DEBUG_PRINTF("flag 1 unmatch\n");
-                    return -1;
-                }
-                flag = 2;
-                DEBUG_PRINTF("1 -> 2\n");
-                break;
-            case 0:
-            default:
-                if (tmp != rx_prefix[0])
-                {
-                    return -1;
-                }
-                flag = 1;
-                DEBUG_PRINTF("0 -> 1\n");
-        }
+        case 8:
+            if (ch != 0x16)
+            {
+                DEBUG_PRINTF("end byte unmatched ");
+                rx_flag = 0;
+            }
+            else
+            {
+                rx_flag = 9;
+                DEBUG_PRINTF("end byte reached ");
+            }
+            break;
+
+        case 7:
+            DEBUG_PRINTF("sum check: 0x%02X ", LOBYTE(rx_sum));
+            if (ch != LOBYTE(rx_sum))
+            {
+                DEBUG_PRINTF("low byte of sum unmatched ");
+                rx_flag = 0;
+            }
+            else
+            {
+                rx_flag = 8;
+            }
+            break;
+
+        case 6:
+            DEBUG_PRINTF("sum: 0x%02X ", HIBYTE(rx_sum));
+            if (ch != HIBYTE(rx_sum))
+            {
+                DEBUG_PRINTF("high byte of sum unmatched ");
+                rx_flag = 0;
+            }
+            else
+            {
+                rx_flag = 7;
+            }
+            break;
+
+        case 5:
+            rx_sum += ch;
+            rx_index++;
+            DEBUG_PRINTF("sum:%04X, index:%d, count:%d ", rx_sum, rx_index, rx_count);
+            if (rx_index == rx_count)
+            {
+                rx_flag = 6;
+            }
+            break;
+
+        case 4:
+            rx_sum = 0x68 + ch;
+            rx_count = ch - 6;
+            rx_index = 0;
+            rx_flag = 5;
+            DEBUG_PRINTF("sum:%04X, count:%d, index:0 ", rx_sum, rx_count);
+            break;
+
+        case 3:
+            if (ch != rx_prefix[3])
+            {
+                DEBUG_PRINTF("flag 3 unmatch ");
+                rx_flag = 0;
+            }
+            else
+            {
+                rx_flag = 4;
+            }
+            break;
+
+        case 2:
+            if (ch != rx_prefix[2])
+            {
+                DEBUG_PRINTF("flag 2 unmatch ");
+                rx_flag = 0;
+            }
+            else
+            {
+                rx_flag = 3;
+            }
+            break;
+
+        case 1:
+            if (ch != rx_prefix[1])
+            {
+                DEBUG_PRINTF("flag 1 unmatch");
+                rx_flag = 0;
+            }
+            else
+            {
+                rx_flag = 2;
+            }
+            break;
+
+        case 0:
+        default:
+            if (ch == rx_prefix[0])
+            {
+                rx_flag = 1;
+            }
+            break;
     }
-    return 0;
+    DEBUG_PRINTF("flag:%d\n", rx_flag);
+    if (rx_flag == 0)
+    {
+        // reset all values
+        rx_sum = 0; rx_index = 0; rx_count = 0;
+    }
+    else if (rx_flag == 9)
+    {
+        // reset all values
+        rx_flag = 0; rx_sum = 0; rx_index = 0; rx_count = 0;
+        return 9;
+    }
+    return rx_flag;
 }
 
+/**
+ * Read chip response
+ * 1. If nothing is received in 100ms, it will return 0
+ * 2. If anything is received and run into flags it will keep trying for 100ms for further response
+ * 
+*/
 int chip_read(uint8_t *recv)
 {
     /** rx for each rx read, buf to store whole rx */
-    uint8_t *rx = (uint8_t [BUF_SIZE]){}, *buf = (uint8_t [BUF_SIZE]){}, *rx_p;
+    uint8_t flag, content_flag = 0, tickdown = 0, *rx = (uint8_t [BUF_SIZE]){}, *rx_p;
+    //*buf = (uint8_t [BUF_SIZE]){},  
     int ret, size = 0;
-    /** read till no more rx */
-    while((ret = termios_read(rx, 255)) > 0 && size < BUF_SIZE)
+
+    do
     {
-        rx_p = rx;
-        if (ret > 0)
+        if ((ret = termios_read(rx, 255)) > 0)
         {
-            DEBUG_PRINTF("read %d bytes: ", ret);
+            rx_p = rx;
+            DEBUG_PRINTF("read %d bytes:\n", ret);
             for (uint8_t i = 0; i < ret; i++)
             {
-                DEBUG_PRINTF("%02x | ", *(rx_p + i));
-            }
-            DEBUG_PRINTF("\n");
-            while (ret-- > 0)
-            {
-                *(buf + (size++)) = *rx_p++;
-                if (size >= BUF_SIZE)
+                DEBUG_PRINTF("0x%02x | ", *(rx_p + i));
+                // flag check
+                flag = flag_check(*(rx_p + i));
+                if (flag > 0)
                 {
-                    break;
+                    tickdown = 10;
+                    if ((flag == 5 || flag == 6) && content_flag == 1)
+                    {
+                        *(recv + (size++)) = *(rx_p + i);
+                        content_flag = 1;
+                    }
+                    if (flag == 5) content_flag = 1;
+                }
+                else
+                {
+                    // restart buf;
+                    size = 0;
+                    content_flag = 0;
                 }
             }
         }
-    }
-    /** if error ocurs */
-    if (ret < 0)
+        usleep(10000);
+    } while (tickdown-- && size < BUF_SIZE && flag > 0);
+    if (size > 0)
     {
-        printf("termios_read error...\n");
+        for (ret = 0; ret < size; ret++)
+        {
+            DEBUG_PRINTF("%02X ", *(recv + ret));
+        }
+        DEBUG_PRINTF("\n");
     }
-    if (size == 0)
-    {
-        return size;
-    }
-    /** verification */
-    return chip_read_verify(buf, size, recv);
+    
+    return size;
 }
 
 /* parses a line of intel hex code, stores the data in bytes[] */
