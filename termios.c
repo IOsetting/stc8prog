@@ -67,6 +67,23 @@ int termios_set_speed(unsigned int speed)
     return tcsetattr(ttys, TCSANOW, &term);
 }
 
+/**
+ * CSIZE:  Character size mask.  Values are CS5, CS6, CS7, or CS8
+ * CSTOPB: Set two stop bits, rather than one.
+ * CLOCAL: Ignore modem control lines.
+ * CREAD:  Enable receiver.
+ * INPCK:  Enable input parity checking
+ * PARENB: Enable parity generation on output and parity checking for input.
+ * ICANON: Enable canonical mode (described below)
+ * ECHO:   Echo input characters.
+ * ECHOE:  If ICANON is also set, the ERASE character erases the preceding input character, and WERASE erases the preceding word.
+ * ISIG:   When any of the characters INTR, QUIT, SUSP, or DSUSP are received, generate the corresponding signal.
+ * 
+ * OPOST:  Enable implementation-defined output processing.
+ * 
+ * ICRNL:  Translate carriage return to newline on input (unless IGNCR is set).
+ * XON:    Enable XON/XOFF flow control on output.
+*/
 int termios_setup(unsigned int speed, int databits, int stopbits, char parity)
 {
     struct termios term;
@@ -95,7 +112,7 @@ int termios_setup(unsigned int speed, int databits, int stopbits, char parity)
     else
         term.c_cflag &= ~CSTOPB;
 
-    switch (parity){
+    switch (parity) {
         case 'N': case 'n':
             term.c_cflag &= ~PARENB;
             term.c_iflag &= ~INPCK;
@@ -112,19 +129,23 @@ int termios_setup(unsigned int speed, int databits, int stopbits, char parity)
         case 'S': case 's':
             term.c_cflag &= ~PARENB;
             term.c_cflag &= ~CSTOPB;
+            term.c_iflag |= INPCK;
             break;
     }
 
-    if (parity != 'n')
-        term.c_iflag |= INPCK;
+    /* set raw input, not using cfmakeraw(&term) */
 
-    /* set raw input */
-    term.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-    term.c_oflag &= ~OPOST;
-    term.c_iflag &= ~(ICRNL | IXON);
+    /* local modes - clear giving: echoing off, canonical off (no erase with
+        backspace, ^U,...),  no extended functions, no signal chars (^Z,^C) */
+    term.c_lflag &= ~(ICANON | ECHO | IEXTEN | ISIG | ECHONL);
+    /* output modes - clear giving: no post processing such as NL to CR+NL */
+    term.c_oflag &= ~(OPOST);
+    /* input modes - clear indicated ones giving: no break, no CR to NL,
+        no parity check, no strip char, no start/stop output (sic) control */
+    term.c_iflag &= ~(BRKINT | ICRNL | ISTRIP | IXON | IGNBRK | PARMRK | INLCR | IGNCR);
 
-    term.c_cc[VTIME] = 1;
     term.c_cc[VMIN] = 0;
+    term.c_cc[VTIME] = 0; /* immediate - anything       */
 
     tcflush(ttys, TCIOFLUSH);
     if ((ret = tcsetattr(ttys, TCSANOW, &term)) < 0) 
