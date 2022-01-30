@@ -42,8 +42,8 @@ int chip_detect(uint8_t *recv)
         termios_write(tx_detect, sizeof(tx_detect));
         if ((ret = chip_read(recv)) <= 0)
         {
-            if (count % 0x0F == 0) printf(".");
             if (count % 0x1FF == 0) printf("\n");
+            if (count % 0x0F == 0) printf(".");
             continue;
         }
         else if (*recv == 0x50)
@@ -114,11 +114,11 @@ int flash_write(const stc_protocol_t * stc_protocol, unsigned int len)
     addr = 0;
     offset = 5;
 
+    printf("%6.2f%%", 0.0);
     while (addr < len)
     {
         arg[1] = HIBYTE(addr);
         arg[2] = LOBYTE(addr);
-        printf("0x%0x ", addr);
 
         cnt = 0;
         while (addr < len)
@@ -141,7 +141,7 @@ int flash_write(const stc_protocol_t * stc_protocol, unsigned int len)
             else if (*recv == stc_protocol->flash_write[arg_size] 
                 && *(recv + 1) == stc_protocol->flash_write[arg_size + 1])
             {
-                printf("- ");
+                printf("\b\b\b\b\b\b\b%6.2f%%", addr * 100.0 / len);
                 arg[0] = 0x02;
                 break;
             }
@@ -151,7 +151,9 @@ int flash_write(const stc_protocol_t * stc_protocol, unsigned int len)
                 return -1;
             }
         }
+        fflush(stdout);
     }
+    printf(" ");
     return 0;
 }
 
