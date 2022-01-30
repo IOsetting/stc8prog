@@ -17,6 +17,11 @@ built according to the ISP described in STC8H datasheet.
 * STC8H1K08
 * STC8H3K32S2
 * STC8H3K64S4
+* STC8H8K64U
+* STC15W104
+* STC15F104W
+* STC15W408AS
+* STC15F2K60S2
 
 # How To Use
 
