@@ -23,38 +23,45 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#define DEFAULTS_PORT   "/dev/ttyUSB0"
-#define DEFAULTS_SPEED  115200L
+#define DEFAULTS_PORT                "/dev/ttyUSB0"
+#define DEFAULTS_SPEED               115200L
+#define DTR_RESET_MIN_MILLISECONDS   1
+#define DTR_RESET_MAX_MILLISECONDS   1000
 
 #define FLAG_DEBUG  (1U << 0)
 #define FLAG_ERASE  (1U << 1)
 
 static const struct option options[] = {
-    {"help",    no_argument,        0,  'h'},
-    {"port",    required_argument,  0,  'p'},
-    {"speed",   required_argument,  0,  's'},
-    {"flash",   required_argument,  0,  'f'},
-    {"erase",   no_argument,        0,  'e'},
-    {"debug",   no_argument,        0,  'e'},
-    {"version", no_argument,        0,  'v'},
+    {"help",        no_argument,        0,  'h'},
+    {"port",        required_argument,  0,  'p'},
+    {"speed",       required_argument,  0,  's'},
+    {"dtr reset",   required_argument,  0,  'r'},
+    {"flash",       required_argument,  0,  'f'},
+    {"erase",       no_argument,        0,  'e'},
+    {"debug",       no_argument,        0,  'e'},
+    {"version",     no_argument,        0,  'v'},
     { }, /* NULL */
 };
 
 static void usage(void)
 {
     printf("Usage: stc8prog [options]...\n");
-    printf("  -h, --help            display this message\n");
-    printf("  -p, --port <device>   set device path\n");
-    printf("  -s, --speed <baud>    set download baudrate\n");
-    printf("  -f, --flash <file>    flash chip with data from hex file\n");
-    printf("  -e, --erase           erase the entire chip\n");
-    printf("  -d, --debug           enable debug output\n");
-    printf("  -v, --version         display version information\n");
+    printf("  -h, --help              display this message\n");
+    printf("  -p, --port <device>     set device path\n");
+    printf("  -s, --speed <baud>      set download baudrate\n");
+    printf("  -r, --dtr reset <msec>  make reset sequence by pulling low dtr\n");
+    printf("  -f, --flash <file>      flash chip with data from hex file\n");
+    printf("  -e, --erase             erase the entire chip\n");
+    printf("  -d, --debug             enable debug output\n");
+    printf("  -v, --version           display version information\n");
     printf("\n");
     printf("Baudrate options: \n");
     printf("   4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000,\n");
     printf("   921600, 1000000, 1152000, 1500000, 2000000, 2500000, 3000000, 3500000,\n");
     printf("   4000000\n");
+    printf("Dtr reset options: \n");
+    printf("   Min: %d,\n", DTR_RESET_MIN_MILLISECONDS);
+    printf("   Max: %d,\n", DTR_RESET_MAX_MILLISECONDS);
     exit(1);
 }
 
@@ -70,6 +77,7 @@ int main(int argc, char *const argv[])
 {
     unsigned long flags = 0;
     unsigned int speed = DEFAULTS_SPEED;
+    unsigned int reset_time = 0;
     char *file = NULL;
     char *port = DEFAULTS_PORT;
     int optidx, ret, hex_size;
@@ -82,13 +90,20 @@ int main(int argc, char *const argv[])
 
     /** No buffer, disable buffering on stdout  */
     setbuf(stdout, NULL);
-    while ((arg = getopt_long(argc, argv, "p:s:f:edhv", options, &optidx)) != -1) {
+    while ((arg = getopt_long(argc, argv, "p:r:s:f:edhv", options, &optidx)) != -1) {
         switch (arg) {
             case 'p':
                 port = optarg;
                 break;
             case 's':
                 speed = atoi(optarg);
+                break;
+            case 'r':
+                reset_time = atoi(optarg);
+                if((DTR_RESET_MIN_MILLISECONDS > reset_time) || (DTR_RESET_MAX_MILLISECONDS < reset_time)){
+                    printf("Reset time should be %d < reset_time < %d", DTR_RESET_MIN_MILLISECONDS, DTR_RESET_MAX_MILLISECONDS); 
+                    exit(1);
+                }
                 break;
             case 'f':
                 file = optarg;
@@ -136,7 +151,15 @@ int main(int argc, char *const argv[])
         exit(1);
     }
 
-    printf("Waiting for MCU, please cycle power: ");
+    if(0 < reset_time){
+        printf("Reset MCU by pulling low dtr for %d millisecond", reset_time);
+        termios_dtr(true);
+        usleep((unsigned int)reset_time * 1000);
+        termios_dtr(false);
+        printf("Waiting for MCU:");
+    }else{
+        printf("Waiting for MCU, please cycle power: ");
+    }
     if ((ret = chip_detect(recv)))
     {
         printf("\e[31mfailed to detect chip\e[0m\n");

@@ -32,6 +32,7 @@ Usage: stc8prog [options]...
   -h, --help            display this message
   -p, --port <device>   set device path
   -s, --speed <baud>    set download baudrate
+  -r, --dtr reset<msec> make reset sequence by pulling low dtr
   -f, --flash <file>    flash chip with data from hex file
   -e, --erase           erase the entire chip
   -d, --debug           enable debug output
@@ -95,6 +96,11 @@ upload_flags =
     1152000
     -e
 upload_command = ${platformio.packages_dir}/tool-stc8prog/stc8prog $UPLOAD_FLAGS -f $SOURCE
+```
+If you want to reset the MCU by pulling DTR line low, add
+    -r
+    5
+to upload_flags config
 ```
 If you want to make this env default, set it to `default_envs`
 ```

@@ -37,24 +37,23 @@ typedef unsigned short WORD;
 #define DEBUG_PRINTF(...) if(debug){printf(__VA_ARGS__);}
 
 /* termios.c */
-
 extern int termios_open(char *path);
 extern int termios_set_speed(unsigned int speed);
 extern int termios_flush(void);
 extern int termios_setup(unsigned int speed, int databits, int stopbits, char parity);
 extern int termios_rts(bool enable);
+extern int termios_dtr(bool enable);
 extern int termios_read(void *data, unsigned long len);
 extern int termios_write(const void *data, unsigned long len);
 
 /* stc8prog.c */
-
+extern int chip_detect(uint8_t *recv);
 extern void set_debug(uint8_t val);
 extern int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_t *recv);
 extern int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv, uint8_t chip_version);
 extern int flash_erase(const stc_protocol_t * stc_protocol, uint8_t *recv);
 extern int flash_write(const stc_protocol_t * stc_protocol, unsigned int len);
 
-extern int chip_detect(uint8_t *recv);
 extern int chip_write(uint8_t *buff, uint8_t len);
 extern int chip_read(uint8_t *recv);
 extern int chip_read_verify(uint8_t *buf, uint8_t size, uint8_t *recv);
