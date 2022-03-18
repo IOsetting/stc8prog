@@ -32,6 +32,7 @@ Usage: stc8prog [options]...
   -h, --help            display this message
   -p, --port <device>   set device path
   -s, --speed <baud>    set download baudrate
+  -r, --dtr reset<msec> make reset sequence by pulling low dtr
   -f, --flash <file>    flash chip with data from hex file
   -e, --erase           erase the entire chip
   -d, --debug           enable debug output

@@ -171,6 +171,22 @@ int termios_rts(bool enable)
     return ioctl(ttys, TIOCMSET, &state);
 }
 
+int termios_dtr(bool enable)
+{
+    unsigned int state;
+    int ret;
+
+    if ((ret = ioctl(ttys, TIOCMGET, &state)) < 0)
+        return ret;
+
+    if (enable)
+        state |= TIOCM_DTR;
+    else
+        state &= ~TIOCM_DTR;
+
+    return ioctl(ttys, TIOCMSET, &state);
+}
+
 int termios_flush(void)
 {
     return tcflush(ttys, TCIFLUSH);
