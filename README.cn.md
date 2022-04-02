@@ -133,4 +133,9 @@ git clone https://gitee.com/iosetting/stc8prog.git
 cd stc8prog
 make
 ```
+安装到系统(Linux)
+```shell
+sudo make install
+```
+然后你可以在任何工作目录使用`stc8prog`命令
 

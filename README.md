@@ -137,4 +137,9 @@ Compile the project
 cd stc8prog
 make
 ```
+Install to system(Linux)
+```shell
+sudo make install
+```
+Then you can use the `stc8prog` command in any working directory
 

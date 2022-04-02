@@ -10,6 +10,9 @@ stc8prog: $(OBJS)
 	@ echo "\e[34mMKELF\e[0m	" $@
 	@ gcc -o $@ $^ -g
 
+install:
+	@ cp stc8prog /usr/local/bin
+
 clean:
 	@ rm -f $(OBJS) stc8prog
 
