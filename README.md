@@ -4,6 +4,10 @@ stc8prog is a command line flash programming tool for STC 8051 series
 microcontrollers, Currently, only STC8H/STC8G/STC8A8K64D4, STC15
 (FWVER > 0x72) series are supported.
 
+Since stcgal does not supported STC8H/STC8G/STC8A8K64D4 and has
+not been updated for a long time, the tool is designed to solve
+flash STC8H/STC8G/STC8A8K64D4 series microcontrollers in Linux.
+
 STC microcontrollers have an UART/USB based boot strap loader (BSL). It 
 utilizes a packet-based protocol to flash the code memory and IAP memory over 
 a serial link. This is referred to as in-system programming (ISP). This tool is
@@ -76,13 +80,14 @@ High baudrate will speed up the writing
 
 ### 1. Add it to packages 
 
-By default PlatformIO places packages at `/home/[username]/.platformio/packages`, create a folder named
-`tool-stc8prog` under it, and place stc8prog executable under it.
+By default PlatformIO places packages at `/home/[username]/.platformio/packages`
+1. create a folder named `tool-stc8prog` under it
+1. and place stc8prog executable under it.
 
 ### 2. Configurate platformio.ini
 
 Create a new env in platformio.ini, it can be a clone of existing one, change the name and change `upload_protocol` 
-option to custom, then configurate the rest accordingly, for example:
+option to `custom`, then configurate the rest accordingly, for example:
 ```
 [env:stc8h3k32s2-stc8prog]
 platform = intel_mcs51
@@ -112,10 +117,10 @@ You can trigger upload with hotkey `Ctrl`+`Alt`+`U`.
 
 If there are any erros and you want to see more detailed logs, run it in the verbose way:
 
-* Click PlatformIO icon in the left navigation panel
-* Expand `[your env name]` in `PROJECT TASKS`
-* Expand `Advanced`
-* Click `Verbose Upload`, this will output the full log of all commands
+1. Click PlatformIO icon in the left navigation panel
+1. Expand `[your env name]` in `PROJECT TASKS`
+1. Expand `Advanced`
+1. Click `Verbose Upload`, this will output the full log of all commands
 
 
 # Build From Source

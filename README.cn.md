@@ -6,6 +6,8 @@ stc8prog 是一个用于STC 8051系列微控制器的命令行烧录工具, 当�
 因为stcgal不支持STC8H/STC8G/STC8A8K64D4且长时间未更新, 这个工具是为了解决在Linux下烧录
 STC8H/STC8G/STC8A8K64D4 系列芯片的问题.
 
+STC微控制器有一个基于UART/USB的引导装入程序(BSL), 它在串口上利用基于包的协议来烧录代码储存器和IAP储存器,
+这被称为在线系统编程(ISP). 这个工具是依据STC8H数据手册中ISP描述而制作的.
 
 ### 已测试通过的型号:
 
@@ -83,7 +85,7 @@ PlatformIO的packages目录默认路径是 `/home/[username]/.platformio/package
 
 ### 2. Configurate platformio.ini
 
-在项目的platformio.ini中新建一个env, 可以用现有的env复制创建, 修改upload为custom, 并增加对应的配置参数, 下面是一个例子
+在项目的platformio.ini中新建一个env, 可以用现有的env复制创建, 修改`upload_protocol`选项为`custom`, 并增加对应的配置参数, 下面是一个例子
 ```
 [env:stc8h3k32s2-stc8prog]
 platform = intel_mcs51
@@ -98,7 +100,8 @@ upload_flags =
     -e
 upload_command = ${platformio.packages_dir}/tool-stc8prog/stc8prog $UPLOAD_FLAGS -f $SOURCE
 ```
-如果需要将其设置为默认, 在 default_envs 中设置
+如果需要通过拉低DTR来复位MCU, 在 `upload_flags` 中添加`-r 5`  
+如果需要把这个env设置为默认, 把它修改为 `default_envs`
 ```
 [platformio]
 default_envs = stc8h3k32s2-stc8prog
