@@ -97,11 +97,7 @@ upload_flags =
     -e
 upload_command = ${platformio.packages_dir}/tool-stc8prog/stc8prog $UPLOAD_FLAGS -f $SOURCE
 ```
-If you want to reset the MCU by pulling DTR line low, add
-    -r
-    5
-to upload_flags config
-```
+If you want to reset the MCU by pulling DTR line low, add `-r 5` to upload_flags config  
 If you want to make this env default, set it to `default_envs`
 ```
 [platformio]
