@@ -21,6 +21,11 @@
 
 #define BUF_SIZE 255
 
+/* disable printing dots due detect sequence,
+ * can be useful on slow terminals
+ */
+#define SILENT_DETECT
+
 const uint8_t tx_detect[] = {0x7f};
 const uint8_t tx_prefix[] = {0x46, 0xb9, 0x6a, 0x00};
 const uint8_t tx_suffix[] = {0x16};
@@ -32,28 +37,36 @@ void set_debug(uint8_t val)
     debug = val;
 }
 
-int chip_detect(uint8_t *recv)
+/***
+ * @brief detect chip
+ * @param recv          - [out] chip detect data destination
+ * @param retry_count   - [in] handshake retry count
+ * 
+ * @return              - 0 if chip detected,
+ *                        error code otherwise
+ */ 
+int32_t chip_detect(uint8_t * restrict const recv,
+                    const uint16_t retry_count)
 {
     uint16_t count;
     int ret;
 
-    for (count = 0; count < 0x7FF; count++) 
+    for (count = 0; retry_count > count; ++count) 
     {
-        termios_write(tx_detect, sizeof(tx_detect));
-        if ((ret = chip_read(recv)) <= 0)
-        {
-            if (count % 0x1FF == 0) printf("\n");
-            if (count % 0x0F == 0) printf(".");
+        serial.write(&serial, tx_detect, sizeof(tx_detect));
+        if ((ret = chip_read(recv)) <= 0) {
+#ifndef SILENT_DETECT
+            if (count & 0x1FF == 0) printf("\n");
+            if (count & 0x0F == 0) printf(".");
+#endif
             continue;
-        }
-        else if (*recv == 0x50)
-        {
+        } else if (*recv == 0x50) {
             return 0;
-        }
-        else
-        {
+        } else {
+#ifndef SILENT_DETECT
             printf("entry_detect read unmatched ");
-            return -1;
+#endif
+            return -2;
         }
     }
     printf("timeout ");
@@ -236,7 +249,7 @@ int chip_write(uint8_t *buff, uint8_t len)
     *tx_pt++ = LOBYTE(sum);
     memcpy(tx_pt, tx_suffix, sizeof(tx_suffix));
     tx_pt += sizeof(tx_suffix);
-    termios_write(tx_buf, tx_pt - tx_buf);
+    serial.write(&serial, tx_buf, tx_pt - tx_buf);
     DEBUG_PRINTF("TX: ");
     for (i = 0; i < tx_pt - tx_buf; i++)
     {
@@ -386,7 +399,7 @@ int chip_read(uint8_t *recv)
 
     do
     {
-        if ((ret = termios_read(rx, 255)) > 0)
+        if ((ret = serial.read(&serial,rx, 255)) > 0)
         {
             rx_p = rx;
             DEBUG_PRINTF("read %d bytes:\n", ret);

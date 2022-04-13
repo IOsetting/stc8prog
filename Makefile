@@ -1,24 +1,40 @@
-BASE_DIR := .
-OUTPUT_DIR := $(BASE_DIR)/build
+TARGET_EXEC := stc8prog
+BUILD_DIR := ./build
+SRC_DIRS := ./src
 
-INCLUDES := $(INCLUDES) -I ./
+TARGET_OS :=
+ifeq ($(OS),Windows_NT)
+	TARGET_OS += win32
+	SRC_DIRS += ./src/serial/win32
+else
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux)
+		TARGET_OS += Linux
+		SRC_DIRS += ./src/serial/linux
+	endif
+endif
 
-CSRCS := $(wildcard *.c)
-OBJS  := $(CSRCS:%.c=$(OUTPUT_DIR)/%.o)
+# Find all the C files we want to compile
+# Note the single quotes around the * expressions. Make will incorrectly expand these otherwise.
+SRCS := $(shell find $(SRC_DIRS) -maxdepth 1 -name '*.c')
 
-stc8prog: $(OBJS)
-	@ echo "\e[34mMKELF\e[0m	" $@
-	@ gcc -o $@ $^ -g
+# String substitution for every source file.
+OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 
-install:
-	@ cp stc8prog /usr/local/bin
+# Every folder in ./src will need to be passed to GCC so that it can find header files
+INC_DIRS := $(shell find $(SRC_DIRS) -maxdepth 1 -type d)
+# Add a prefix to INC_DIRS. So moduleA would become -ImoduleA. GCC understands this -I flag
+INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
+# The final build step.
+$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
+	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+
+# Build step for C source
+$(BUILD_DIR)/%.c.o: %.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@
+
+.PHONY: clean
 clean:
-	@ rm -f $(OBJS) stc8prog
-
-$(OUTPUT_DIR)/%.o: %.c
-	@ mkdir -p $(OUTPUT_DIR)
-	@ echo "\e[32mCC\e[0m	" $@
-	@ gcc $(INCLUDES) -o "$@" -c "$<" -g -Wall -Wextra -Werror
-
-$(OUTPUT_DIR)/stc8prog.o: $(wildcard *.h)
+	rm -r $(BUILD_DIR)

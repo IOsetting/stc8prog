@@ -22,6 +22,7 @@
 #include <getopt.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #define DEFAULTS_PORT                "/dev/ttyUSB0"
 #define DEFAULTS_SPEED               115200L
@@ -31,11 +32,17 @@
 #define FLAG_DEBUG  (1U << 0)
 #define FLAG_ERASE  (1U << 1)
 
+/* retry reset chip, if it not responce afrer reset cycle */ 
+#define RESET_RETRY_COUNT           3
+/* chip detect 100ms try count before timeout */
+#define CHIP_DETECT_RST_TRYCOUNT    (uint16_t)(0x20)
+#define CHIP_DETECT_WAIT_TRYCOUNT   (uint16_t)(0x7FF)
+
 static const struct option options[] = {
     {"help",        no_argument,        0,  'h'},
     {"port",        required_argument,  0,  'p'},
     {"speed",       required_argument,  0,  's'},
-    {"dtr reset",   required_argument,  0,  'r'},
+    {"reset",       required_argument,  0,  'r'},
     {"flash",       required_argument,  0,  'f'},
     {"erase",       no_argument,        0,  'e'},
     {"debug",       no_argument,        0,  'e'},
@@ -49,7 +56,7 @@ static void usage(void)
     printf("  -h, --help              display this message\n");
     printf("  -p, --port <device>     set device path\n");
     printf("  -s, --speed <baud>      set download baudrate\n");
-    printf("  -r, --dtr reset <msec>  make reset sequence by pulling low dtr\n");
+    printf("  -r, --reset <msec>      make reset sequence by pulling low dtr\n");
     printf("  -f, --flash <file>      flash chip with data from hex file\n");
     printf("  -e, --erase             erase the entire chip\n");
     printf("  -d, --debug             enable debug output\n");
@@ -73,11 +80,45 @@ static void version(void)
     exit(1);
 }
 
+/***
+ * @brief invite MCU to flashing
+ * @param reset_time    - [in] if more then zero, time to pull down
+ *                        dtr line for resetting MCU
+ * @param recv          - [out] chip detect data
+ *      
+ * @return              - 0 if invitation was successfull,
+ *                        error code if chip not detected 
+ */ 
+static int32_t invite_mcu(const uint32_t reset_time,
+                          uint8_t * restrict const recv)
+{
+    if(0 < reset_time){
+        for(uint8_t sel = RESET_RETRY_COUNT; sel; --sel){
+            printf("Reset MCU by pulling low dtr for %d milliseconds\n", reset_time);
+            serial.dtr_set(&serial, true);
+            usleep((unsigned int)reset_time * 1000);
+            serial.dtr_set(&serial, false);
+            printf("Waiting for MCU: ");
+            const int detected = chip_detect(recv, CHIP_DETECT_RST_TRYCOUNT);
+            if(0 == detected){
+                return 0;
+            }
+        }
+        /* timeout */
+        return -EAGAIN;
+    }else{
+        printf("Waiting for MCU, please cycle power: ");
+        const int detected = chip_detect(recv, CHIP_DETECT_WAIT_TRYCOUNT);
+        return detected;
+    }
+}
+
+
 int main(int argc, char *const argv[])
 {
     unsigned long flags = 0;
     unsigned int speed = DEFAULTS_SPEED;
-    unsigned int reset_time = 0;
+    uint32_t reset_time = 0;
     char *file = NULL;
     char *port = DEFAULTS_PORT;
     int optidx, ret, hex_size;
@@ -138,36 +179,25 @@ int main(int argc, char *const argv[])
     }
 
     printf("Opening port %s: ", port);
-    if ((ret = termios_open(port)))
+    if ((ret = serial.ctor(&serial, port)))
     {
         printf("\e[31mcan not open port\e[0m\n");
         exit(1);
     }
     printf("\e[32mdone\e[0m\n");
 
-    if ((ret = termios_setup(MINBAUD, 8, 1, 'E')))
+    if ((ret = serial.setup(&serial, MINBAUD, 8, 1, USERIAL_PARITY_EVEN)))
     {
         printf("\e[31mfailed to communicate chip with baudrate %d\e[0m\n", MINBAUD);
         exit(1);
     }
 
-    if(0 < reset_time){
-        printf("Reset MCU by pulling low dtr for %d millisecond", reset_time);
-        termios_dtr(true);
-        usleep((unsigned int)reset_time * 1000);
-        termios_dtr(false);
-        printf("Waiting for MCU:");
-    }else{
-        printf("Waiting for MCU, please cycle power: ");
-    }
-    if ((ret = chip_detect(recv)))
-    {
-        printf("\e[31mfailed to detect chip\e[0m\n");
-        exit(1);
-    }
-    else
-    {
+    const int32_t invite_res = invite_mcu(reset_time, recv);
+    if(0 == invite_res){
         printf("\e[32mdetected\e[0m\n");
+    }else{
+        printf("\e[31mfailed to detect chip\e[0m\n");
+        exit(1);        
     }
 
     /** chip model */
@@ -229,7 +259,7 @@ int main(int argc, char *const argv[])
     }
     
     printf("host: ");
-    if ((ret = termios_set_speed(speed)) < 0)
+    if ((ret = serial.speed_set(&serial, speed)) < 0)
     {
         printf("failed\n");
         exit(1);

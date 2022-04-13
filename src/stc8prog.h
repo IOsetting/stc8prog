@@ -15,12 +15,16 @@
 #ifndef __STC8PROG_H__
 #define __STC8PROG_H__
 
-#include "stc8db.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include "stc8db.h"
+#include "userial.h"
+
+/* OS-abstract serial instance */
+extern userial_t serial;
 
 typedef unsigned char BYTE;
 typedef unsigned short WORD;
@@ -36,18 +40,19 @@ typedef unsigned short WORD;
 
 #define DEBUG_PRINTF(...) if(debug){printf(__VA_ARGS__);}
 
-/* termios.c */
-extern int termios_open(char *path);
-extern int termios_set_speed(unsigned int speed);
-extern int termios_flush(void);
-extern int termios_setup(unsigned int speed, int databits, int stopbits, char parity);
-extern int termios_rts(bool enable);
-extern int termios_dtr(bool enable);
-extern int termios_read(void *data, unsigned long len);
-extern int termios_write(const void *data, unsigned long len);
-
 /* stc8prog.c */
-extern int chip_detect(uint8_t *recv);
+
+/***
+ * @brief detect chip
+ * @param recv          - [out] chip detect data destination
+ * @param retry_count   - [in] handshake retry count
+ * 
+ * @return              - 0 if chip detected,
+ *                        error code otherwise
+ */ 
+extern int32_t chip_detect(uint8_t * restrict const recv,
+                           const uint16_t retry_count);
+
 extern void set_debug(uint8_t val);
 extern int baudrate_set(const stc_protocol_t * stc_protocol, unsigned int speed, uint8_t *recv);
 extern int baudrate_check(const stc_protocol_t * stc_protocol, uint8_t *recv, uint8_t chip_version);
