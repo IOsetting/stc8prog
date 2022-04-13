@@ -166,14 +166,14 @@ int32_t com_setup(win32_serial_t * restrict const this,
         return -EIO;
     }
 
-	overlapped_read.Internal = 0;
-	overlapped_read.InternalHigh = 0;
-	overlapped_read.Offset = 0;
-	overlapped_read.OffsetHigh = 0;
-	overlapped_write.Internal = 0;
-	overlapped_write.InternalHigh = 0;
-	overlapped_write.Offset = 0;
-	overlapped_write.OffsetHigh = 0;
+	this->win32_specific.overlapped_read.Internal = 0;
+	this->win32_specific.overlapped_read.InternalHigh = 0;
+	this->win32_specific.overlapped_read.Offset = 0;
+	this->win32_specific.overlapped_read.OffsetHigh = 0;
+	this->win32_specific.overlapped_write.Internal = 0;
+	this->win32_specific.overlapped_write.InternalHigh = 0;
+	this->win32_specific.overlapped_write.Offset = 0;
+	this->win32_specific.overlapped_write.OffsetHigh = 0;
 	
 	this->win32_specific.overlapped_read.hEvent = CreateEvent(NULL, 1, 0, NULL);
 	this->win32_specific.overlapped_write.hEvent = CreateEvent(NULL, 0, 0, NULL);
@@ -368,7 +368,7 @@ int32_t com_write(win32_serial_t * restrict const this,
 
 	DWORD dwBytesWr = 0;
 
-	bool write_ok = WriteFile(this->win32_specific.ttys, data, len, &dwBytesWr, &this->win32_specific.overlapped_write);
+	bool write_ok = WriteFile(this->win32_specific.ttys, src, src_siz, &dwBytesWr, &this->win32_specific.overlapped_write);
 	DWORD error_id = GetLastError();
 
 	if((!write_ok) && (error_id != ERROR_SUCCESS) && (error_id != ERROR_IO_PENDING)){
