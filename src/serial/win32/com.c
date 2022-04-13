@@ -181,10 +181,6 @@ int32_t com_setup(win32_serial_t * restrict const this,
 
 	DCB dcbSerialParams = {0};
 
-    /* set process priority to realtime */
-	HANDLE hProcess = GetCurrentProcess();
-	SetPriorityClass(hProcess, REALTIME_PRIORITY_CLASS);
-
 	dcbSerialParams.DCBlength=sizeof(dcbSerialParams);
 
 	if (!GetCommState(this->win32_specific.ttys, &dcbSerialParams)) {
@@ -248,15 +244,18 @@ int32_t com_setup(win32_serial_t * restrict const this,
 		return -EIO;
 	}
 	
-	SetCommMask(this->win32_specific.ttys, EV_ERR);
+	const bool set_mask_res = SetCommMask(this->win32_specific.ttys, EV_ERR);
+    if(unlikely(!set_mask_res)){
+        return -EIO; 
+    }
 
 	const bool purge_res = PurgeComm(this->win32_specific.ttys, PURGE_RXCLEAR | PURGE_RXABORT);
-    if(!purge_res){
+    if(unlikely(!purge_res)){
         return -EIO; 
     }
     /* Windows happy only when rts is set */
     const bool rts_res = EscapeCommFunction(this->win32_specific.ttys, SETRTS);
-    if(!rts_res){
+    if(unlikely(!rts_res)){
         return -EIO;
     }
 
@@ -321,10 +320,17 @@ int32_t com_read(win32_serial_t * restrict const this,
 	COMSTAT comstat;
     DWORD dwBytesRead = 0;
 
-	ResetEvent(this->win32_specific.overlapped_read.hEvent);
-	ClearCommError(this->win32_specific.ttys,
-                   &flags,
-                   &comstat);
+	const bool reset_res = ResetEvent(this->win32_specific.overlapped_read.hEvent);
+    if(unlikely(!reset_res)){
+        return -EIO;
+    }
+
+	const bool clear_res = ClearCommError(this->win32_specific.ttys,
+                                          &flags,
+                                          &comstat);
+    if(unlikely(!clear_res)){
+        return -EIO;
+    }                                 
 
 	const bool read_ok = ReadFile(this->win32_specific.ttys,
                                   dst,
@@ -334,13 +340,15 @@ int32_t com_read(win32_serial_t * restrict const this,
 
 	DWORD error_id = GetLastError();
 
-    if((!read_ok) && (ERROR_SUCCESS != error_id) && (ERROR_IO_PENDING != error_id)){
+    if(unlikely((!read_ok) && (ERROR_SUCCESS != error_id) && (ERROR_IO_PENDING != error_id))){
 		printf("com_read: cannot read %ld\n", GetLastError());
         return -1;
     }
 
-	GetOverlappedResult(this->win32_specific.ttys, &this->win32_specific.overlapped_read, &dwBytesRead, true);
-
+	const bool get_res = GetOverlappedResult(this->win32_specific.ttys, &this->win32_specific.overlapped_read, &dwBytesRead, true);
+    if(unlikely(!get_res)){
+        return -EIO;
+    }
     /* print received data for debug purposes
 	 * if( dwBytesRead > 0 ) {
 	 *	printf("com_read: read %lu bytes\n", dwBytesRead);
@@ -373,15 +381,18 @@ int32_t com_write(win32_serial_t * restrict const this,
 
 	DWORD dwBytesWr = 0;
 
-	bool write_ok = WriteFile(this->win32_specific.ttys, src, src_siz, &dwBytesWr, &this->win32_specific.overlapped_write);
-	DWORD error_id = GetLastError();
+	const bool write_ok = WriteFile(this->win32_specific.ttys, src, src_siz, &dwBytesWr, &this->win32_specific.overlapped_write);
+	const DWORD error_id = GetLastError();
 
-	if((!write_ok) && (error_id != ERROR_SUCCESS) && (error_id != ERROR_IO_PENDING)){
+	if(unlikely((!write_ok) && (error_id != ERROR_SUCCESS) && (error_id != ERROR_IO_PENDING))){
 		printf("com_write: cannot write\n");
 		return -1;
 	}
 
-	GetOverlappedResult(this->win32_specific.ttys, &this->win32_specific.overlapped_write, &dwBytesWr, true);
+	const bool get_res = GetOverlappedResult(this->win32_specific.ttys, &this->win32_specific.overlapped_write, &dwBytesWr, true);
+    if(unlikely(!get_res)){
+        return -EIO;
+    }
 
     /** print transmitted data length for debug purposes 
 	 * if( dwBytesWr > 0 ) {
