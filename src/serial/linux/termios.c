@@ -261,6 +261,10 @@ int32_t termios_setup(linux_serial_t * restrict const this,
     if(unlikely(0 > apply_res)){
         return apply_res;
     }
+
+    this->generic.databits = databits;
+    this->generic.stopbits = stopbits;
+    this->generic.parity = parity;   
     return 0;
 }
 

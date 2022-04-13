@@ -68,6 +68,7 @@ int32_t com_ctor(win32_serial_t * restrict const this,
 		                              NULL);
 
     if(INVALID_HANDLE_VALUE != hSerial){
+        this->generic.initiated = SERIAL_PORT_INIT_MAGIC;
         this->win32_specific.ttys =  hSerial;
         (void)strncpy((char*)this->generic.name, path, sizeof(this->generic.name) - 1);
         this->generic.name[sizeof(this->generic.name) - 1] = '\0';
@@ -259,6 +260,9 @@ int32_t com_setup(win32_serial_t * restrict const this,
         return -EIO;
     }
 
+    this->generic.databits = databits;
+    this->generic.stopbits = stopbits;
+    this->generic.parity = parity;
     return 0;
 }
 
@@ -331,21 +335,22 @@ int32_t com_read(win32_serial_t * restrict const this,
 	DWORD error_id = GetLastError();
 
     if((!read_ok) && (ERROR_SUCCESS != error_id) && (ERROR_IO_PENDING != error_id)){
-		printf("termios_read: cannot read %ld\n", GetLastError());
+		printf("com_read: cannot read %ld\n", GetLastError());
         return -1;
     }
 
 	GetOverlappedResult(this->win32_specific.ttys, &this->win32_specific.overlapped_read, &dwBytesRead, true);
 
-    /* print received data for debug purposes */
-	if( dwBytesRead > 0 ) {
-		printf("termios_read: read %lu bytes\n", dwBytesRead);
-
-		for(DWORD sel=0; sel<dwBytesRead; sel++) {
-			printf(" %02X", *((unsigned char *)dst + (int)sel));
-		}
-		printf("\n");
-	}
+    /* print received data for debug purposes
+	 * if( dwBytesRead > 0 ) {
+	 *	printf("com_read: read %lu bytes\n", dwBytesRead);
+     *
+	 *	for(DWORD sel=0; sel<dwBytesRead; sel++) {
+	 *		printf(" %02X", *((unsigned char *)dst + (int)sel));
+	 *	}
+	 *	printf("\n");
+	 * }
+     */
 
     return dwBytesRead;
 }
