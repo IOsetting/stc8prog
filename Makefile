@@ -29,6 +29,8 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 # The final build step.
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+# Move binary to root catalog to make dobin happy
+	mv $(BUILD_DIR)/$(TARGET_EXEC) ./$(TARGET_EXEC)
 
 # Build step for C source
 $(BUILD_DIR)/%.c.o: %.c
@@ -37,4 +39,5 @@ $(BUILD_DIR)/%.c.o: %.c
 
 .PHONY: clean
 clean:
-	rm -r $(BUILD_DIR)
+	rm -f -r $(BUILD_DIR)
+	rm -f ./$(TARGET_EXEC)
