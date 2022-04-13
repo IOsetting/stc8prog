@@ -383,9 +383,11 @@ int32_t com_write(win32_serial_t * restrict const this,
 
 	GetOverlappedResult(this->win32_specific.ttys, &this->win32_specific.overlapped_write, &dwBytesWr, true);
 
-	if( dwBytesWr > 0 ) {
-		printf("com_write: %lu bytes written\n", dwBytesWr);
-	}
+    /** print transmitted data length for debug purposes 
+	 * if( dwBytesWr > 0 ) {
+	 *	printf("com_write: %lu bytes written\n", dwBytesWr);
+	 *}
+     */
 
 	return dwBytesWr;
 }
