@@ -1,4 +1,6 @@
-// Copyright 2021 IOsetting <iosetting@outlook.com>
+// Copyright 2021-2022 IOsetting <iosetting@outlook.com>,
+//                     Ivan Nalogin <egan.fryazino@gmail.com>, 
+//                     Alexey Evtyushkin <earvest@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

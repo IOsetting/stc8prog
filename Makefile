@@ -28,16 +28,22 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 # The final build step.
 ./$(TARGET_EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+ifeq ($(TARGET_OS),win32)
+	@echo -e "\e[34mMKPE\e[0m	" $@
+else
+	@echo -e "\e[34mMKELF\e[0m	" $@
+endif
+	@$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 # Build step for C source
 $(BUILD_DIR)/%.c.o: %.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@
+	@mkdir -p $(dir $@)
+	@echo -e "\e[32mCC\e[0m	" $@
+	@$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@
 
 install:
 ifeq ($(TARGET_OS),win32)	
-	@echo "todo"
+	@echo "Windows users must copy binary to desired location manually"
 else
 	@echo "It is better to use the system installer of your distribution"
 	@echo "For gentoo - rasdark overlay, dev-embedded/stc8prog"
@@ -47,5 +53,5 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f -r $(BUILD_DIR)
-	rm -f ./$(TARGET_EXEC)
+	@rm -f -r $(BUILD_DIR)
+	@rm -f ./$(TARGET_EXEC)
