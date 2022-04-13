@@ -64,7 +64,7 @@ int32_t com_ctor(win32_serial_t * restrict const this,
 		                              0,
 		                              NULL,
 		                              OPEN_EXISTING,
-		                              FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
+		                              FILE_FLAG_OVERLAPPED,
 		                              NULL);
 
     if(INVALID_HANDLE_VALUE != hSerial){
@@ -120,6 +120,7 @@ int32_t com_speed_set(win32_serial_t * restrict const this,
 		}
 	}
 
+    this->generic.speed = speed;
     return 0;
 }
 
@@ -159,6 +160,12 @@ int32_t com_setup(win32_serial_t * restrict const this,
         return -ENODEV;
     }
 
+    const bool setup_res = SetupComm (this->win32_specific.ttys, 4096, 4096); 
+    if(unlikely(!setup_res)){
+        printf("com_setup: Cannot setup buffer size");
+        return -EIO;
+    }
+
 	overlapped_read.Internal = 0;
 	overlapped_read.InternalHigh = 0;
 	overlapped_read.Offset = 0;
@@ -180,8 +187,8 @@ int32_t com_setup(win32_serial_t * restrict const this,
 	dcbSerialParams.DCBlength=sizeof(dcbSerialParams);
 
 	if (!GetCommState(this->win32_specific.ttys, &dcbSerialParams)) {
-		printf("termios_setup: Cannot get com state\n");
-		return -1;
+		printf("com_setup: Cannot get com state\n");
+		return -EIO;
 	}
 
 	dcbSerialParams.fBinary = 1;
@@ -202,10 +209,9 @@ int32_t com_setup(win32_serial_t * restrict const this,
 	dcbSerialParams.XoffLim = 0;
 	dcbSerialParams.fNull = 0;
 
-
 	dcbSerialParams.BaudRate=speed;
 	dcbSerialParams.ByteSize=databits;
-	dcbSerialParams.StopBits= (1 == stopbits)? ONESTOPBIT: TWOSTOPBITS;
+	dcbSerialParams.StopBits= (1 == stopbits) ? ONESTOPBIT: TWOSTOPBITS;
     
     switch (parity) {
         case USERIAL_PARITY_NONE:
@@ -225,40 +231,34 @@ int32_t com_setup(win32_serial_t * restrict const this,
             break;
     }
 	if(!SetCommState(this->win32_specific.ttys, &dcbSerialParams)){
-		printf("termios_setup: Cannot set com state\n");
-		return -2;
+		printf("com_setup: Cannot set com state\n");
+		return -EIO;
 	}
-
-	SetupComm (this->win32_specific.ttys, 4096, 4096); /* Set buffer size. */
-	// PurgeComm (ttys, PURGE_TXABORT | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_RXCLEAR);
 
 	COMMTIMEOUTS timeouts={0};
 	timeouts.ReadIntervalTimeout=MAXDWORD;
-	
-	//timeouts.ReadIntervalTimeout=0;
-
 	timeouts.ReadTotalTimeoutConstant=0;
-	timeouts.ReadTotalTimeoutMultiplier=0;
-	timeouts.WriteTotalTimeoutConstant=0;
-	//timeouts.WriteTotalTimeoutMultiplier=20000L;
-	timeouts.WriteTotalTimeoutMultiplier=0;
-	// timeouts.ReadIntervalTimeout=50;
-	// timeouts.ReadTotalTimeoutConstant=50;
-	// timeouts.ReadTotalTimeoutMultiplier=10;
-	// timeouts.WriteTotalTimeoutConstant=50;
-	// timeouts.WriteTotalTimeoutMultiplier=10;
+    timeouts.ReadTotalTimeoutMultiplier=0;
+    timeouts.WriteTotalTimeoutConstant=0;
+    timeouts.WriteTotalTimeoutMultiplier=0;
+
 	if(!SetCommTimeouts(this->win32_specific.ttys, &timeouts)){
-		printf("termios_setup: Cannot set timeouts\n");
-		return -3;
+		printf("com_setup: Cannot set timeouts\n");
+		return -EIO;
 	}
 	
 	SetCommMask(this->win32_specific.ttys, EV_ERR);
 
-	const bool purge_res = PurgeComm(this->win32_specific.ttys,
-                                     PURGE_TXCLEAR | PURGE_TXABORT | PURGE_RXCLEAR | PURGE_RXABORT);
+	const bool purge_res = PurgeComm(this->win32_specific.ttys, PURGE_RXCLEAR | PURGE_RXABORT);
     if(!purge_res){
         return -EIO; 
     }
+    /* Windows happy only when rts is set */
+    const bool rts_res = EscapeCommFunction(this->win32_specific.ttys, SETRTS);
+    if(!rts_res){
+        return -EIO;
+    }
+
     return 0;
 }
 
