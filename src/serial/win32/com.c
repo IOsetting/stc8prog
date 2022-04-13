@@ -138,7 +138,6 @@ int32_t com_flush(win32_serial_t * restrict const this)
     if(unlikely(SERIAL_PORT_INIT_MAGIC != this->generic.initiated)) {
         return -ENODEV;
     }
-    /* todo: in pyseral used another flush method */
     const bool res = PurgeComm(this->win32_specific.ttys, PURGE_RXCLEAR | PURGE_RXABORT);
     return (res ? 0: -EIO);
 }
@@ -344,23 +343,13 @@ int32_t com_read(win32_serial_t * restrict const this,
 
     if(unlikely((!read_ok) && (ERROR_SUCCESS != error_id) && (ERROR_IO_PENDING != error_id))){
 		printf("com_read: cannot read %ld\n", GetLastError());
-        return -1;
+        return -EIO;
     }
 
 	const bool get_res = GetOverlappedResult(this->win32_specific.ttys, &this->win32_specific.overlapped_read, &dwBytesRead, true);
     if(unlikely(!get_res)){
         return -EIO;
     }
-    /* print received data for debug purposes
-	 * if( dwBytesRead > 0 ) {
-	 *	printf("com_read: read %lu bytes\n", dwBytesRead);
-     *
-	 *	for(DWORD sel=0; sel<dwBytesRead; sel++) {
-	 *		printf(" %02X", *((unsigned char *)dst + (int)sel));
-	 *	}
-	 *	printf("\n");
-	 * }
-     */
 
     return dwBytesRead;
 }
@@ -395,12 +384,6 @@ int32_t com_write(win32_serial_t * restrict const this,
     if(unlikely(!get_res)){
         return -EIO;
     }
-
-    /** print transmitted data length for debug purposes 
-	 * if( dwBytesWr > 0 ) {
-	 *	printf("com_write: %lu bytes written\n", dwBytesWr);
-	 *}
-     */
 
 	return dwBytesWr;
 }
