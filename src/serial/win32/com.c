@@ -323,8 +323,8 @@ int32_t com_read(win32_serial_t * restrict const this,
                    &comstat);
 
 	const bool read_ok = ReadFile(this->win32_specific.ttys,
-                                  data,
-                                  len,
+                                  dst,
+                                  dst_siz,
                                   &dwBytesRead,
                                   &this->win32_specific.overlapped_read);
 
@@ -342,7 +342,7 @@ int32_t com_read(win32_serial_t * restrict const this,
 		printf("termios_read: read %lu bytes\n", dwBytesRead);
 
 		for(DWORD sel=0; sel<dwBytesRead; sel++) {
-			printf(" %02X", *((unsigned char *)data + (int)sel));
+			printf(" %02X", *((unsigned char *)dst + (int)sel));
 		}
 		printf("\n");
 	}
