@@ -341,8 +341,8 @@ int32_t termios_dtr(linux_serial_t * restrict const this,
  * @return          - read data count on success, error code otherwise 
  */ 
 int32_t termios_read(linux_serial_t * restrict const this,
-                 uint8_t * restrict const dst,
-                 const uint32_t dst_siz)
+                     uint8_t * restrict const dst,
+                     const uint32_t dst_siz)
 {
     if(unlikely(SERIAL_PORT_INIT_MAGIC != this->generic.initiated)) {
         return -ENODEV;
@@ -367,8 +367,8 @@ int32_t termios_read(linux_serial_t * restrict const this,
  * @return          - write data count on success, error code otherwise 
  */ 
 int32_t termios_write(linux_serial_t * restrict const this,
-                  const uint8_t * restrict const src,
-                  const uint32_t src_siz)
+                      const uint8_t * restrict const src,
+                      const uint32_t src_siz)
 {
     if(unlikely(SERIAL_PORT_INIT_MAGIC != this->generic.initiated)) {
         return -ENODEV;

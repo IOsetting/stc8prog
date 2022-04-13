@@ -69,7 +69,9 @@ int32_t chip_detect(uint8_t * restrict const recv,
             return -2;
         }
     }
+#ifndef SILENT_DETECT
     printf("timeout ");
+#endif
     return -1;
 }
 
