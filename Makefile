@@ -27,15 +27,23 @@ INC_DIRS := $(shell find $(SRC_DIRS) -maxdepth 1 -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 # The final build step.
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
+./$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
-# Move binary to root catalog to make dobin happy
-	mv $(BUILD_DIR)/$(TARGET_EXEC) ./$(TARGET_EXEC)
 
 # Build step for C source
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@
+
+install:
+ifeq ($(TARGET_OS),win32)	
+	@echo "todo"
+else
+	@echo "It is better to use the system installer of your distribution"
+	@echo "For gentoo - rasdark overlay, dev-embedded/stc8prog"
+#Binary path from XuHg-zjcn	
+	install $(TARGET_EXEC) /usr/local/bin
+endif
 
 .PHONY: clean
 clean:
