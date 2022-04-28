@@ -36,7 +36,7 @@ Usage: stc8prog [options]...
   -h, --help            display this message
   -p, --port <device>   set device path
   -s, --speed <baud>    set download baudrate
-  -r, --dtr reset<msec> make reset sequence by pulling low dtr
+  -r, --reset <msec>    make reset sequence by pulling low dtr
   -f, --flash <file>    flash chip with data from hex file
   -e, --erase           erase the entire chip
   -d, --debug           enable debug output
@@ -144,3 +144,19 @@ sudo make install
 ```
 Then you can use the `stc8prog` command in any working directory
 
+
+# Gentoo linux
+
+Package dev-embedded/stc8prog-9999 located in unoficial rasdark overlay.
+Resulting binary will be from last commit from https://github.com/IOsetting/stc8prog.git
+
+# Build From Source in Windows under Cygwin
+
+1. Run Cygwin setup
+2. Install 'gcc-core' and 'make' packages
+3. Use command-line git to pull latest stc8prog source to desired folder
+4. Run Cygwin terminal
+5. Navigate to folder with stc8prog source (windows disks are mapped to /cygdrive; eg. to navigate to 'stc8prog' folder located on 'D' drive, use 'cd /cygdrive/d/stc8prog/')
+6. Run make to build binary
+
+* By default, Cygwin's gcc binary requires cygwin1.dll to work correctly, just copy it from Cygwin installation dir bin folder

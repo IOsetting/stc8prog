@@ -6,3 +6,4 @@ build/
 *.hex
 *.tar
 *.gz
+*.exe
