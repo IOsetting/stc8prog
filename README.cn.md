@@ -1,10 +1,8 @@
 #  stc8prog - STC ISP 烧录工具
 
-stc8prog 是一个用于STC 8051系列微控制器的命令行烧录工具, 当前只支持 STC8H/STC8G/STC8A8K64D4, STC15
-(FWVER > 0x72) 系列型号. 
-
-因为stcgal不支持STC8H/STC8G/STC8A8K64D4且长时间未更新, 这个工具是为了解决在Linux下烧录
-STC8H/STC8G/STC8A8K64D4 系列芯片的问题.
+stc8prog 是一个用于STC 8051系列微控制器的命令行烧录工具, 
+用于解决在Linux下烧录 STC8H/STC8G/STC8A8K64D4 系列芯片的问题. 
+当前只支持 STC8H/STC8G/STC8A, STC15 (FWVER > 0x72) 系列型号. 
 
 STC微控制器有一个基于UART/USB的引导装入程序(BSL), 它在串口上利用基于包的协议来烧录代码储存器和IAP储存器,
 这被称为在线系统编程(ISP). 这个工具是依据STC8H数据手册中ISP描述而制作的.
@@ -136,9 +134,22 @@ git clone https://gitee.com/iosetting/stc8prog.git
 cd stc8prog
 make
 ```
-安装到系统(Linux)
+(可选)安装到系统
 ```shell
 sudo make install
 ```
-然后你可以在任何工作目录使用`stc8prog`命令
 
+# Gentoo linux
+
+dev-embedded/stc8prog-9999 安装包位于 unoficial rasdark overlay. 二进制文件来源于 https://github.com/IOsetting/stc8prog.git 的最新提交
+
+# Windows: 使用 Cygwin 编译
+
+1. 安装 Cygwin
+2. 安装 'gcc-core' 和 'make'
+3. 使用命令行, 导出最新的 stc8prog 源代码
+4. 运行 Cygwin 命令行
+5. 导航至 stc8prog 源代码目录 (windows disks are mapped to /cygdrive; eg. to navigate to 'stc8prog' folder located on 'D' drive, use 'cd /cygdrive/d/stc8prog/')
+6. 运行`make`进行编译
+
+* 默认设置下, Cygwin 的 gcc binary 需要 cygwin1.dll 才能正常工作, 可以从 Cygwin 的安装目录复制.

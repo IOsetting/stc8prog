@@ -1,12 +1,8 @@
 #  stc8prog - STC MCU ISP flash tool
 
 stc8prog is a command line flash programming tool for STC 8051 series 
-microcontrollers, Currently, only STC8H/STC8G/STC8A8K64D4, STC15
+microcontrollers, Currently, only STC8H/STC8G/STC8A, STC15
 (FWVER > 0x72) series are supported.
-
-Since stcgal does not supported STC8H/STC8G/STC8A8K64D4 and has
-not been updated for a long time, the tool is designed to solve
-flash STC8H/STC8G/STC8A8K64D4 series microcontrollers in Linux.
 
 STC microcontrollers have an UART/USB based boot strap loader (BSL). It 
 utilizes a packet-based protocol to flash the code memory and IAP memory over 
@@ -138,11 +134,10 @@ Compile the project
 cd stc8prog
 make
 ```
-Install to system(Linux)
+Optional: install to system path
 ```shell
 sudo make install
 ```
-Then you can use the `stc8prog` command in any working directory
 
 
 # Gentoo linux
