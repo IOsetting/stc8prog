@@ -92,21 +92,26 @@ static void version(void)
 static int32_t invite_mcu(const uint32_t reset_time,
                           uint8_t * restrict const recv)
 {
-    if(0 < reset_time){
-        for(uint8_t sel = RESET_RETRY_COUNT; sel; --sel){
+    if(0 < reset_time)
+    {
+        for(uint8_t sel = RESET_RETRY_COUNT; sel; --sel)
+        {
             printf("Reset MCU by pulling low dtr for %d milliseconds\n", reset_time);
             serial.dtr_set(&serial, true);
             usleep((unsigned int)reset_time * 1000);
             serial.dtr_set(&serial, false);
             printf("Waiting for MCU: ");
             const int detected = chip_detect(recv, CHIP_DETECT_RST_TRYCOUNT);
-            if(0 == detected){
+            if(0 == detected)
+            {
                 return 0;
             }
         }
         /* timeout */
         return -EAGAIN;
-    }else{
+    }
+    else
+    {
         printf("Waiting for MCU, please cycle power: ");
         const int detected = chip_detect(recv, CHIP_DETECT_WAIT_TRYCOUNT);
         return detected;
@@ -169,7 +174,8 @@ int main(int argc, char *const argv[])
     if (flags & FLAG_DEBUG)
         set_debug(true);
 
-    if (file) {
+    if (file)
+    {
         printf("Loading hex file: ");
         if ((hex_size = load_hex_file(file)) < 0)
         {
@@ -193,9 +199,12 @@ int main(int argc, char *const argv[])
     }
 
     const int32_t invite_res = invite_mcu(reset_time, recv);
-    if(0 == invite_res){
+    if(0 == invite_res)
+    {
         printf("\e[32mdetected\e[0m\n");
-    }else{
+    }
+    else
+    {
         printf("\e[31mfailed to detect chip\e[0m\n");
         exit(1);        
     }
