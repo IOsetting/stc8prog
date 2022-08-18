@@ -389,7 +389,7 @@ uint8_t flag_check(uint8_t ch)
 /**
  * Read chip response
  * 1. If nothing is received in 100ms, it will return 0
- * 2. If anything is received and run into flags it will keep trying for 100ms for further response
+ * 2. If anything is received and run into flags it will keep trying for 320ms for further response
  * 
 */
 int chip_read(uint8_t *recv)
@@ -412,7 +412,7 @@ int chip_read(uint8_t *recv)
                 flag = flag_check(*(rx_p + i));
                 if (flag > 0)
                 {
-                    tickdown = 10;
+                    tickdown = 32;
                     if ((flag == 5 || flag == 6) && content_flag == 1)
                     {
                         *(recv + (size++)) = *(rx_p + i);
@@ -427,6 +427,18 @@ int chip_read(uint8_t *recv)
                     content_flag = 0;
                 }
             }
+            if (flag == 9)
+            {
+                /**
+                 * Read completed so return immediately, otherwise baudrate_set() 
+                 * will fail for not being invoked in the short window.
+                */
+                break;
+            }
+        }
+        else
+        {
+            DEBUG_PRINTF(".");
         }
         usleep(10000);
     } while (tickdown-- && size < BUF_SIZE && flag > 0);

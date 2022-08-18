@@ -381,6 +381,7 @@ int32_t termios_write(linux_serial_t * restrict const this,
     }
 
     const int ret = write(this->linux_specific.ttys, src, src_siz);
+    tcdrain(this->linux_specific.ttys);
     /***
      * todo: seems read flush can cause problems sometimes,
      * need to be checked
