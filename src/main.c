@@ -74,7 +74,7 @@ static void usage(void)
 
 static void version(void)
 {
-    printf("stc8prog 1.3\n");
+    printf("stc8prog 1.4\n");
     printf("Copyright(c) 2022 IOsetting <iosetting@outlook.com>\n");
     printf("Licensed under the Apache License, Version 2.0\n");
     exit(1);
