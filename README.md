@@ -121,24 +121,29 @@ If there are any erros and you want to see more detailed logs, run it in the ver
 
 # Build From Source
 
-Install DEV-tools  
+#### Install DEV-tools
+* Linux
 ```shell
 sudo apt install build-essential
 ```
-Checkout the project  
+* macOS
+```shell
+xcode-select --install
+```
+
+#### Checkout the project  
 ```shell
 git clone https://github.com/IOsetting/stc8prog.git
 ```
-Compile the project
+#### Compile the project
 ```shell
 cd stc8prog
 make
 ```
-Optional: install to system path
+#### Optional: install to system path
 ```shell
 sudo make install
 ```
-
 
 # Gentoo linux
 
