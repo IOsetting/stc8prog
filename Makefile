@@ -12,6 +12,10 @@ else
 		TARGET_OS += Linux
 		SRC_DIRS += ./src/serial/linux
 	endif
+	ifeq ($(UNAME_S),Darwin)
+		TARGET_OS += Darwin
+		SRC_DIRS += ./src/serial/linux
+	endif
 endif
 
 # Find all the C files we want to compile

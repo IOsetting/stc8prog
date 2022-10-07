@@ -48,6 +48,22 @@ typedef struct linux_serial {
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+// macOS' termios.h doesn't have these baudrates defined
+#ifdef __APPLE__
+#define B460800 460800
+#define B500000 500000
+#define B576000 576000
+#define B921600 921600
+#define B1000000 1000000
+#define B1152000 1152000
+#define B1500000 1500000
+#define B2000000 2000000
+#define B2500000 2500000
+#define B3000000 3000000
+#define B3500000 3500000
+#define B4000000 4000000
+#endif
+
 static speed_t termios_speed[] = {
     B0,       B50,      B75,      B110,     B134,     B150,     B200,     
     B300,     B600,     B1200,    B1800,    B2400,    B4800,    B9600,    
