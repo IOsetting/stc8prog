@@ -16,6 +16,7 @@
 #include "stc8db.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
 #include <err.h>
@@ -32,7 +33,7 @@
 #define FLAG_DEBUG  (1U << 0)
 #define FLAG_ERASE  (1U << 1)
 
-/* retry reset chip, if it not responce afrer reset cycle */ 
+/* retry reset chip, if it not responce after reset cycle */
 #define RESET_RETRY_COUNT           3
 /* chip detect 100ms try count before timeout */
 #define CHIP_DETECT_RST_TRYCOUNT    (uint16_t)(0x20)
@@ -53,20 +54,21 @@ static const struct option options[] = {
 static void usage(void)
 {
     printf("Usage: stc8prog [options]...\n");
-    printf("  -h, --help              display this message\n");
-    printf("  -p, --port <device>     set device path\n");
-    printf("  -s, --speed <baud>      set download baudrate\n");
-    printf("  -r, --reset <msec>      make reset sequence by pulling low dtr\n");
-    printf("  -f, --flash <file>      flash chip with data from hex file\n");
-    printf("  -e, --erase             erase the entire chip\n");
-    printf("  -d, --debug             enable debug output\n");
-    printf("  -v, --version           display version information\n");
+    printf("  -h, --help                    display this message\n");
+    printf("  -p, --port <device>           set device path\n");
+    printf("  -s, --speed <baud>            set download baudrate\n");
+    printf("  -r, --reset <msec>            make reset sequence by pulling low dtr\n");
+    printf("  -r, --reset <cmd> [args] ;    command to perform reset or power cycle\n");
+    printf("  -f, --flash <file>            flash chip with data from hex file\n");
+    printf("  -e, --erase                   erase the entire chip\n");
+    printf("  -d, --debug                   enable debug output\n");
+    printf("  -v, --version                 display version information\n");
     printf("\n");
-    printf("Baudrate options: \n");
+    printf("Baudrate options:\n");
     printf("   4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000,\n");
     printf("   921600, 1000000, 1152000, 1500000, 2000000, 2500000, 3000000, 3500000,\n");
     printf("   4000000\n");
-    printf("Dtr reset options: \n");
+    printf("DTR reset options:\n");
     printf("   Min: %d,\n", DTR_RESET_MIN_MILLISECONDS);
     printf("   Max: %d,\n", DTR_RESET_MAX_MILLISECONDS);
     exit(1);
@@ -84,13 +86,18 @@ static void version(void)
  * @brief invite MCU to flashing
  * @param reset_time    - [in] if more then zero, time to pull down
  *                        dtr line for resetting MCU
+ * @param reset_cmd     - [in] if not NULL, external command
+ *                        for resetting or power cycling MCU
+ * @param reset_args    - [in] arguments for reset_cmd
  * @param recv          - [out] chip detect data
  *      
  * @return              - 0 if invitation was successfull,
  *                        error code if chip not detected 
- */ 
+ */
 static int32_t invite_mcu(const uint32_t reset_time,
-                          uint8_t * restrict const recv)
+			  char* const reset_cmd,
+			  char* const reset_args[],
+                          uint8_t* restrict const recv)
 {
     if(0 < reset_time)
     {
@@ -112,7 +119,21 @@ static int32_t invite_mcu(const uint32_t reset_time,
     }
     else
     {
-        printf("Waiting for MCU, please cycle power: ");
+        if (reset_cmd) {
+            printf("Running reset command and waiting for MCU: ");
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("Could not create new process");
+                exit(1);
+            } else if (pid == 0) {
+                // Child process
+                if (execv(reset_cmd, reset_args) < 0) {
+                    perror("Could not execute reset command");
+                }
+            }
+        } else {
+            printf("Waiting for MCU, please cycle power: ");
+        }
         const int detected = chip_detect(recv, CHIP_DETECT_WAIT_TRYCOUNT);
         return detected;
     }
@@ -124,9 +145,11 @@ int main(int argc, char *const argv[])
     unsigned long flags = 0;
     unsigned int speed = DEFAULTS_SPEED;
     uint32_t reset_time = 0;
+    char *reset_cmd = NULL;
+    char *reset_args[32];
     char *file = NULL;
     char *port = DEFAULTS_PORT;
-    int optidx, ret, hex_size;
+    int ret, hex_size;
     char arg;
     const stc_model_t *stc_model;
     const stc_protocol_t *stc_protocol;
@@ -136,7 +159,7 @@ int main(int argc, char *const argv[])
 
     /** No buffer, disable buffering on stdout  */
     setbuf(stdout, NULL);
-    while ((arg = getopt_long(argc, argv, "p:r:s:f:edhv", options, &optidx)) != -1) {
+    while ((arg = getopt_long(argc, argv, "p:r:s:f:edhv", options, NULL)) != -1) {
         switch (arg) {
             case 'p':
                 port = optarg;
@@ -145,10 +168,22 @@ int main(int argc, char *const argv[])
                 speed = atoi(optarg);
                 break;
             case 'r':
-                reset_time = atoi(optarg);
-                if((DTR_RESET_MIN_MILLISECONDS > reset_time) || (DTR_RESET_MAX_MILLISECONDS < reset_time)){
-                    printf("Reset time should be %d < reset_time < %d", DTR_RESET_MIN_MILLISECONDS, DTR_RESET_MAX_MILLISECONDS); 
-                    exit(1);
+                if (strspn(optarg, "0123456789") == strlen(optarg)) {
+                    reset_time = atoi(optarg);
+                    if ((DTR_RESET_MIN_MILLISECONDS > reset_time) ||
+                        (DTR_RESET_MAX_MILLISECONDS < reset_time)) {
+                        printf("Reset time should be %d < reset_time < %d\n",
+                               DTR_RESET_MIN_MILLISECONDS, DTR_RESET_MAX_MILLISECONDS);
+                        exit(1);
+                    }
+                } else {
+                    int idx = 0;
+                    reset_cmd = reset_args[idx++] = optarg;
+                    while (optind < argc && idx < sizeof(reset_args) / sizeof(char*)) {
+                       if (strcmp(argv[optind], ";") == 0) break;
+                       reset_args[idx++] = argv[optind++];
+                    }
+                    reset_args[idx] = NULL;
                 }
                 break;
             case 'f':
@@ -198,7 +233,7 @@ int main(int argc, char *const argv[])
         exit(1);
     }
 
-    const int32_t invite_res = invite_mcu(reset_time, recv);
+    const int32_t invite_res = invite_mcu(reset_time, reset_cmd, reset_args, recv);
     if(0 == invite_res)
     {
         printf("\e[32mdetected\e[0m\n");
