@@ -39,6 +39,9 @@
 #define CHIP_DETECT_RST_TRYCOUNT    (uint16_t)(0x20)
 #define CHIP_DETECT_WAIT_TRYCOUNT   (uint16_t)(0x7FF)
 
+/* length of the array containing the args of the reset cmd */
+#define LEN_RESET_ARGS 32
+
 static const struct option options[] = {
     {"help",        no_argument,        0,  'h'},
     {"port",        required_argument,  0,  'p'},
@@ -146,7 +149,7 @@ int main(int argc, char *const argv[])
     unsigned int speed = DEFAULTS_SPEED;
     uint32_t reset_time = 0;
     char *reset_cmd = NULL;
-    char *reset_args[32];
+    char *reset_args[LEN_RESET_ARGS];
     char *file = NULL;
     char *port = DEFAULTS_PORT;
     int ret, hex_size;
@@ -179,9 +182,13 @@ int main(int argc, char *const argv[])
                 } else {
                     int idx = 0;
                     reset_cmd = reset_args[idx++] = optarg;
-                    while (optind < argc && idx < sizeof(reset_args) / sizeof(char*)) {
+                    while (optind < argc && idx < LEN_RESET_ARGS) {
                        if (strcmp(argv[optind], ";") == 0) break;
                        reset_args[idx++] = argv[optind++];
+                    }
+                    if (idx == LEN_RESET_ARGS) {
+                       puts("Reset command has too many arguments.");
+                       exit(1);
                     }
                     reset_args[idx] = NULL;
                 }
