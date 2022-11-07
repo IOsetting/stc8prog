@@ -29,14 +29,15 @@ STC微控制器有一个基于UART/USB的引导装入程序(BSL), 它在串口�
 
 ```
 Usage: stc8prog [options]...
-  -h, --help            display this message
-  -p, --port <device>   set device path
-  -s, --speed <baud>    set download baudrate
-  -r, --reset <msec>    make reset sequence by pulling low dtr
-  -f, --flash <file>    flash chip with data from hex file
-  -e, --erase           erase the entire chip
-  -d, --debug           enable debug output
-  -v, --version         display version information
+  -h, --help                    display this message
+  -p, --port <device>           set device path
+  -s, --speed <baud>            set download baudrate
+  -r, --reset <msec>            make reset sequence by pulling low dtr
+  -r, --reset <cmd> [args] ;    command to perform reset or power cycle
+  -f, --flash <file>            flash chip with data from hex file
+  -e, --erase                   erase the entire chip
+  -d, --debug                   enable debug output
+  -v, --version                 display version information
 
 Baudrate options: 
    4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000,
